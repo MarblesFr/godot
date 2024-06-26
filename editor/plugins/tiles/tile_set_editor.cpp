@@ -579,11 +579,10 @@ void TileSetEditor::_move_tile_set_array_element(Object *p_undo_redo, Object *p_
 						}
 					} else if (p_array_prefix == "physics_layer_") {
 						for (int layer_index = begin; layer_index < end; layer_index++) {
-							ADD_UNDO(tile_data, vformat("physics_layer_%d/polygons_count", layer_index));
-							for (int polygon_index = 0; polygon_index < tile_data->get_collision_polygons_count(layer_index); polygon_index++) {
-								ADD_UNDO(tile_data, vformat("physics_layer_%d/polygon_%d/points", layer_index, polygon_index));
-								ADD_UNDO(tile_data, vformat("physics_layer_%d/polygon_%d/one_way", layer_index, polygon_index));
-								ADD_UNDO(tile_data, vformat("physics_layer_%d/polygon_%d/one_way_margin", layer_index, polygon_index));
+							ADD_UNDO(tile_data, vformat("physics_layer_%d/rectangles_count", layer_index));
+							for (int rectangle_index = 0; rectangle_index < tile_data->get_collision_rectangles_count(layer_index); rectangle_index++) {
+								ADD_UNDO(tile_data, vformat("physics_layer_%d/rectangle_%d/data", layer_index, rectangle_index));
+								ADD_UNDO(tile_data, vformat("physics_layer_%d/rectangle_%d/one_way", layer_index, rectangle_index));
 							}
 						}
 					} else if (p_array_prefix == "terrain_set_") {

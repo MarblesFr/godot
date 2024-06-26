@@ -32,7 +32,6 @@
 
 #include "scene/2d/physics/area_2d.h"
 #include "scene/2d/physics/collision_object_2d.h"
-#include "scene/resources/2d/convex_polygon_shape_2d.h"
 
 void CollisionShape2D::_shape_changed() {
 	queue_redraw();
@@ -183,11 +182,6 @@ PackedStringArray CollisionShape2D::get_configuration_warnings() const {
 	}
 	if (one_way_collision && Object::cast_to<Area2D>(col_object)) {
 		warnings.push_back(RTR("The One Way Collision property will be ignored when the collision object is an Area2D."));
-	}
-
-	Ref<ConvexPolygonShape2D> convex = shape;
-	if (convex.is_valid()) {
-		warnings.push_back(RTR("Polygon-based shapes are not meant be used nor edited directly through the CollisionShape2D node. Please use the CollisionPolygon2D node instead."));
 	}
 
 	return warnings;

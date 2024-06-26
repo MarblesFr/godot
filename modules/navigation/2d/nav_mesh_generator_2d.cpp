@@ -39,7 +39,6 @@
 #include "scene/2d/physics/static_body_2d.h"
 #include "scene/2d/polygon_2d.h"
 #include "scene/2d/tile_map.h"
-#include "scene/resources/2d/convex_polygon_shape_2d.h"
 #include "scene/resources/2d/navigation_mesh_source_geometry_data_2d.h"
 #include "scene/resources/2d/navigation_polygon.h"
 #include "scene/resources/2d/rectangle_shape_2d.h"
@@ -509,28 +508,17 @@ void NavMeshGenerator2D::generator_parse_staticbody2d_node(const Ref<NavigationP
 			if (rectangle_shape) {
 				Vector<Vector2> shape_outline;
 
-				const Vector2 &rectangle_size = rectangle_shape->get_size();
-				const Vector2 &rectangle_offset = rectangle_shape->get_offset();
+				const Vector2i &rectangle_size = rectangle_shape->get_size();
+				const Vector2i &rectangle_offset = rectangle_shape->get_offset();
 
 				shape_outline.resize(5);
-				shape_outline.write[0] = static_body_xform.xform(rectangle_offset + -rectangle_size * 0.5);
-				shape_outline.write[1] = static_body_xform.xform(rectangle_offset + Vector2(rectangle_size.x, -rectangle_size.y) * 0.5);
-				shape_outline.write[2] = static_body_xform.xform(rectangle_offset + rectangle_size * 0.5);
-				shape_outline.write[3] = static_body_xform.xform(rectangle_offset + Vector2(-rectangle_size.x, rectangle_size.y) * 0.5);
-				shape_outline.write[4] = static_body_xform.xform(rectangle_offset + -rectangle_size * 0.5);
+				shape_outline.write[0] = static_body_xform.xform(rectangle_offset + -(rectangle_size / 2));
+				shape_outline.write[1] = static_body_xform.xform(rectangle_offset + Vector2i(rectangle_size.x + 1, -rectangle_size.y) / 2);
+				shape_outline.write[2] = static_body_xform.xform(rectangle_offset + (rectangle_size + Vector2i(1, 1)) / 2);
+				shape_outline.write[3] = static_body_xform.xform(rectangle_offset + Vector2i(-rectangle_size.x, rectangle_size.y + 1) / 2);
+				shape_outline.write[4] = static_body_xform.xform(rectangle_offset + -(rectangle_size / 2));
 
 				p_source_geometry_data->add_obstruction_outline(shape_outline);
-			}
-
-			ConvexPolygonShape2D *convex_polygon_shape = Object::cast_to<ConvexPolygonShape2D>(*s);
-			if (convex_polygon_shape) {
-				Vector<Vector2i> shape_outline = convex_polygon_shape->get_points();
-
-				for (int i = 0; i < shape_outline.size(); i++) {
-					shape_outline.write[i] = static_body_xform.xform(shape_outline[i]);
-				}
-
-				p_source_geometry_data->add_obstruction_outline_i(shape_outline);
 			}
 		}
 	}
@@ -607,15 +595,24 @@ void NavMeshGenerator2D::generator_parse_tile_map_layer_node(const Ref<Navigatio
 		for (int physics_layer = 0; physics_layer < physics_layers_count; physics_layer++) {
 			if ((parsed_geometry_type == NavigationPolygon::PARSED_GEOMETRY_STATIC_COLLIDERS || parsed_geometry_type == NavigationPolygon::PARSED_GEOMETRY_BOTH) &&
 					(tile_set->get_physics_layer_collision_layer(physics_layer) & parsed_collision_mask)) {
-				for (int collision_polygon_index = 0; collision_polygon_index < tile_data->get_collision_polygons_count(physics_layer); collision_polygon_index++) {
-					PackedVector2iArray collision_polygon_points = tile_data->get_collision_polygon_points(physics_layer, collision_polygon_index);
-					if (collision_polygon_points.is_empty()) {
-						continue;
-					}
+				for (int collision_polygon_index = 0; collision_polygon_index < tile_data->get_collision_rectangles_count(physics_layer); collision_polygon_index++) {
+					PackedVector2iArray collision_polygon_data = tile_data->get_collision_rectangle_data(physics_layer, collision_polygon_index);
+//					if (collision_polygon_points.is_empty()) {
+//						continue;
+//					}
+					Vector2i size = collision_polygon_data[0];
+					Vector2i offset = collision_polygon_data[1];
 
 					if (flip_h || flip_v || transpose) {
-						collision_polygon_points = TileData::get_transformed_vertices(collision_polygon_points, flip_h, flip_v, transpose);
+						offset = TileData::get_transformed_offset(offset, flip_h, flip_v, transpose);
 					}
+
+					PackedVector2iArray collision_polygon_points;
+					collision_polygon_points.resize(4);
+					collision_polygon_points.write[0] = offset + -(size / 2);
+					collision_polygon_points.write[1] = offset + Vector2i(size.x + 1, -size.y) / 2;
+					collision_polygon_points.write[2] = offset + (size + Vector2i(1, 1)) / 2;
+					collision_polygon_points.write[3] = offset + Vector2i(-size.x, size.y + 1) / 2;
 
 					Vector<Vector2> obstruction_outline;
 					obstruction_outline.resize(collision_polygon_points.size());

@@ -37,7 +37,7 @@
 #include "core/templates/rb_set.h"
 #include "scene/2d/light_occluder_2d.h"
 #include "scene/main/canvas_item.h"
-#include "scene/resources/2d/convex_polygon_shape_2d.h"
+#include "scene/resources/2d/rectangle_shape_2d.h"
 #include "scene/resources/2d/navigation_polygon.h"
 #include "scene/resources/image_texture.h"
 #include "scene/resources/packed_scene.h"
@@ -197,7 +197,7 @@ private:
 	HashMap<int, RBMap<Array, Array>> compatibility_tilemap_mapping;
 	HashMap<Vector2i, int> compatibility_size_count;
 
-	void _compatibility_conversion();
+//	void _compatibility_conversion();
 
 public:
 	// Format of output array [source_id, atlas_coords, alternative]
@@ -847,15 +847,14 @@ private:
 	// Physics
 	struct PhysicsLayerTileData {
 		struct PolygonShapeTileData {
-			LocalVector<Vector2i> polygon;
-			LocalVector<Ref<ConvexPolygonShape2D>> shapes;
-			mutable HashMap<int, LocalVector<Ref<ConvexPolygonShape2D>>> transformed_shapes;
+			Ref<RectangleShape2D> shape;
+			mutable HashMap<int, Ref<RectangleShape2D>> transformed_shape;
 			bool one_way = false;
 		};
 
 		Vector2 linear_velocity;
 		double angular_velocity = 0.0;
-		Vector<PolygonShapeTileData> polygons;
+		Vector<PolygonShapeTileData> rectangles;
 	};
 	Vector<PhysicsLayerTileData> physics;
 	// TODO add support for areas.
@@ -946,16 +945,15 @@ public:
 	Vector2 get_constant_linear_velocity(int p_layer_id) const;
 	void set_constant_angular_velocity(int p_layer_id, real_t p_velocity);
 	real_t get_constant_angular_velocity(int p_layer_id) const;
-	void set_collision_polygons_count(int p_layer_id, int p_shapes_count);
-	int get_collision_polygons_count(int p_layer_id) const;
-	void add_collision_polygon(int p_layer_id);
-	void remove_collision_polygon(int p_layer_id, int p_polygon_index);
-	void set_collision_polygon_points(int p_layer_id, int p_polygon_index, Vector<Vector2i> p_polygon);
-	Vector<Vector2i> get_collision_polygon_points(int p_layer_id, int p_polygon_index) const;
-	void set_collision_polygon_one_way(int p_layer_id, int p_polygon_index, bool p_one_way);
-	bool is_collision_polygon_one_way(int p_layer_id, int p_polygon_index) const;
-	int get_collision_polygon_shapes_count(int p_layer_id, int p_polygon_index) const;
-	Ref<ConvexPolygonShape2D> get_collision_polygon_shape(int p_layer_id, int p_polygon_index, int shape_index, bool p_flip_h = false, bool p_flip_v = false, bool p_transpose = false) const;
+	void set_collision_rectangles_count(int p_layer_id, int p_shapes_count);
+	int get_collision_rectangles_count(int p_layer_id) const;
+	void add_collision_rectangle(int p_layer_id);
+	void remove_collision_rectangle(int p_layer_id, int p_rectangle_index);
+	void set_collision_rectangle_data(int p_layer_id, int p_rectangle_index, Vector<Vector2i> p_data);
+	Vector<Vector2i> get_collision_rectangle_data(int p_layer_id, int p_rectangle_index) const;
+	void set_collision_rectangle_one_way(int p_layer_id, int p_rectangle_index, bool p_one_way);
+	bool is_collision_rectangle_one_way(int p_layer_id, int p_rectangle_index) const;
+	Ref<RectangleShape2D> get_collision_rectangle_shape(int p_layer_id, int p_rectangle_index, bool p_flip_h = false, bool p_flip_v = false, bool p_transpose = false) const;
 
 	// Terrain
 	void set_terrain_set(int p_terrain_id);
@@ -984,7 +982,7 @@ public:
 
 	// Polygons.
 	static PackedVector2Array get_transformed_vertices(const PackedVector2Array &p_vertices, bool p_flip_h, bool p_flip_v, bool p_transpose);
-	static PackedVector2iArray get_transformed_vertices(const PackedVector2iArray &p_vertices, bool p_flip_h, bool p_flip_v, bool p_transpose);
+	static Vector2i get_transformed_offset(const Vector2i &p_offset, bool p_flip_h, bool p_flip_v, bool p_transpose);
 };
 
 VARIANT_ENUM_CAST(TileSet::CellNeighbor);

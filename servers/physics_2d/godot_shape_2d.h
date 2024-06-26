@@ -337,62 +337,6 @@ public:
 	DEFAULT_PROJECT_RANGE_CAST
 };
 
-class GodotConvexPolygonShape2D : public GodotShape2D {
-	struct Point {
-		Vector2i pos;
-		Vector2i normal; //normal to next segment
-	};
-
-	Point *points = nullptr;
-	int point_count = 0;
-
-public:
-	_FORCE_INLINE_ int get_point_count() const { return point_count; }
-	_FORCE_INLINE_ const Vector2i &get_point(int p_idx) const { return points[p_idx].pos; }
-	_FORCE_INLINE_ const Vector2i &get_segment_normal(int p_idx) const { return points[p_idx].normal; }
-	_FORCE_INLINE_ Vector2i get_xformed_segment_normal(const Transform2Di &p_xform, int p_idx) const {
-		Vector2i a = points[p_idx].pos;
-		p_idx++;
-		Vector2i b = points[p_idx == point_count ? 0 : p_idx].pos;
-		return (p_xform.xform(b) - p_xform.xform(a)).normalized().orthogonal();
-	}
-
-	virtual PhysicsServer2D::ShapeType get_type() const override { return PhysicsServer2D::SHAPE_CONVEX_POLYGON; }
-
-	virtual void project_rangev(const Vector2i &p_normal, const Transform2Di &p_transform, real_t &r_min, real_t &r_max) const override { project_range(p_normal, p_transform, r_min, r_max); }
-	virtual void get_supports(const Vector2i &p_normal, Vector2i *r_supports, int &r_amount) const override;
-
-	virtual bool contains_point(const Vector2i &p_point) const override;
-	virtual bool intersect_segment(const Vector2i &p_begin, const Vector2i &p_end, Vector2i &r_point, Vector2i &r_normal) const override;
-	virtual real_t get_moment_of_inertia(real_t p_mass, const Size2 &p_scale) const override;
-
-	virtual void set_data(const Variant &p_data) override;
-	virtual Variant get_data() const override;
-
-	_FORCE_INLINE_ void project_range(const Vector2i &p_normal, const Transform2Di &p_transform, real_t &r_min, real_t &r_max) const {
-		if (!points || point_count <= 0) {
-			r_min = r_max = 0;
-			return;
-		}
-
-		r_min = r_max = p_normal.dot(p_transform.xform(points[0].pos));
-		for (int i = 1; i < point_count; i++) {
-			real_t d = p_normal.dot(p_transform.xform(points[i].pos));
-			if (d > r_max) {
-				r_max = d;
-			}
-			if (d < r_min) {
-				r_min = d;
-			}
-		}
-	}
-
-	DEFAULT_PROJECT_RANGE_CAST
-
-	GodotConvexPolygonShape2D() {}
-	~GodotConvexPolygonShape2D();
-};
-
 #undef DEFAULT_PROJECT_RANGE_CAST
 
 #endif // GODOT_SHAPE_2D_H

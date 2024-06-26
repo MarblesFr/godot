@@ -496,43 +496,6 @@ static void _collision_segment_rectangle(const GodotShape2D *p_a, const Transfor
 	separator.generate_contacts();
 }
 
-template <bool castA, bool castB, bool withMargin>
-static void _collision_segment_convex_polygon(const GodotShape2D *p_a, const Transform2Di &p_transform_a, const GodotShape2D *p_b, const Transform2Di &p_transform_b, _CollectorCallback2D *p_collector, const Vector2i &p_motion_a, const Vector2i &p_motion_b, real_t p_margin_A, real_t p_margin_B) {
-	const GodotSegmentShape2D *segment_A = static_cast<const GodotSegmentShape2D *>(p_a);
-	const GodotConvexPolygonShape2D *convex_B = static_cast<const GodotConvexPolygonShape2D *>(p_b);
-
-	SeparatorAxisTest2D<GodotSegmentShape2D, GodotConvexPolygonShape2D, castA, castB, withMargin> separator(segment_A, p_transform_a, convex_B, p_transform_b, p_collector, p_motion_a, p_motion_b, p_margin_A, p_margin_B);
-
-	if (!separator.test_previous_axis()) {
-		return;
-	}
-
-	if (!separator.test_cast()) {
-		return;
-	}
-
-	if (!separator.test_axis(segment_A->get_xformed_normal(p_transform_a))) {
-		return;
-	}
-
-	for (int i = 0; i < convex_B->get_point_count(); i++) {
-		if (!separator.test_axis(convex_B->get_xformed_segment_normal(p_transform_b, i))) {
-			return;
-		}
-
-		if (withMargin) {
-			if (TEST_POINT(p_transform_a.xform(segment_A->get_a()), p_transform_b.xform(convex_B->get_point(i)))) {
-				return;
-			}
-			if (TEST_POINT(p_transform_a.xform(segment_A->get_b()), p_transform_b.xform(convex_B->get_point(i)))) {
-				return;
-			}
-		}
-	}
-
-	separator.generate_contacts();
-}
-
 /////////
 
 template <bool castA, bool castB, bool withMargin>
@@ -609,109 +572,7 @@ static void _collision_rectangle_rectangle(const GodotShape2D *p_a, const Transf
 	separator.generate_contacts();
 }
 
-template <bool castA, bool castB, bool withMargin>
-static void _collision_rectangle_convex_polygon(const GodotShape2D *p_a, const Transform2Di &p_transform_a, const GodotShape2D *p_b, const Transform2Di &p_transform_b, _CollectorCallback2D *p_collector, const Vector2i &p_motion_a, const Vector2i &p_motion_b, real_t p_margin_A, real_t p_margin_B) {
-	const GodotRectangleShape2D *rectangle_A = static_cast<const GodotRectangleShape2D *>(p_a);
-	const GodotConvexPolygonShape2D *convex_B = static_cast<const GodotConvexPolygonShape2D *>(p_b);
-
-	SeparatorAxisTest2D<GodotRectangleShape2D, GodotConvexPolygonShape2D, castA, castB, withMargin> separator(rectangle_A, p_transform_a, convex_B, p_transform_b, p_collector, p_motion_a, p_motion_b, p_margin_A, p_margin_B);
-
-	if (!separator.test_previous_axis()) {
-		return;
-	}
-
-	if (!separator.test_cast()) {
-		return;
-	}
-
-	//box faces
-	if (!separator.test_axis(p_transform_a.columns[0].normalized())) {
-		return;
-	}
-
-	if (!separator.test_axis(p_transform_a.columns[1].normalized())) {
-		return;
-	}
-
-	//convex faces
-	Transform2Di boxinv;
-	if constexpr (withMargin) {
-		boxinv = p_transform_a.affine_inverse();
-	}
-	for (int i = 0; i < convex_B->get_point_count(); i++) {
-		if (!separator.test_axis(convex_B->get_xformed_segment_normal(p_transform_b, i))) {
-			return;
-		}
-
-		if constexpr (withMargin) {
-			//all points vs all points need to be tested if margin exist
-			if (!separator.test_axis(rectangle_A->get_circle_axis(p_transform_a, boxinv, p_transform_b.xform(convex_B->get_point(i))))) {
-				return;
-			}
-			if constexpr (castA) {
-				if (!separator.test_axis(rectangle_A->get_circle_axis(p_transform_a, boxinv, p_transform_b.xform(convex_B->get_point(i)) - p_motion_a))) {
-					return;
-				}
-			}
-			if constexpr (castB) {
-				if (!separator.test_axis(rectangle_A->get_circle_axis(p_transform_a, boxinv, p_transform_b.xform(convex_B->get_point(i)) + p_motion_b))) {
-					return;
-				}
-			}
-			if constexpr (castA && castB) {
-				if (!separator.test_axis(rectangle_A->get_circle_axis(p_transform_a, boxinv, p_transform_b.xform(convex_B->get_point(i)) + p_motion_b - p_motion_a))) {
-					return;
-				}
-			}
-		}
-	}
-
-	separator.generate_contacts();
-}
-
 /////////
-
-template <bool castA, bool castB, bool withMargin>
-static void _collision_convex_polygon_convex_polygon(const GodotShape2D *p_a, const Transform2Di &p_transform_a, const GodotShape2D *p_b, const Transform2Di &p_transform_b, _CollectorCallback2D *p_collector, const Vector2i &p_motion_a, const Vector2i &p_motion_b, real_t p_margin_A, real_t p_margin_B) {
-	const GodotConvexPolygonShape2D *convex_A = static_cast<const GodotConvexPolygonShape2D *>(p_a);
-	const GodotConvexPolygonShape2D *convex_B = static_cast<const GodotConvexPolygonShape2D *>(p_b);
-
-	SeparatorAxisTest2D<GodotConvexPolygonShape2D, GodotConvexPolygonShape2D, castA, castB, withMargin> separator(convex_A, p_transform_a, convex_B, p_transform_b, p_collector, p_motion_a, p_motion_b, p_margin_A, p_margin_B);
-
-	if (!separator.test_previous_axis()) {
-		return;
-	}
-
-	if (!separator.test_cast()) {
-		return;
-	}
-
-	for (int i = 0; i < convex_A->get_point_count(); i++) {
-		if (!separator.test_axis(convex_A->get_xformed_segment_normal(p_transform_a, i))) {
-			return;
-		}
-	}
-
-	for (int i = 0; i < convex_B->get_point_count(); i++) {
-		if (!separator.test_axis(convex_B->get_xformed_segment_normal(p_transform_b, i))) {
-			return;
-		}
-	}
-
-	if (withMargin) {
-		for (int i = 0; i < convex_A->get_point_count(); i++) {
-			for (int j = 0; j < convex_B->get_point_count(); j++) {
-				if (TEST_POINT(p_transform_a.xform(convex_A->get_point(i)), p_transform_b.xform(convex_B->get_point(j)))) {
-					return;
-				}
-			}
-		}
-	}
-
-	separator.generate_contacts();
-}
-
-////////
 
 bool sat_2d_calculate_penetration(const GodotShape2D *p_shape_A, const Transform2Di &p_transform_A, const Vector2i &p_motion_A, const GodotShape2D *p_shape_B, const Transform2Di &p_transform_B, const Vector2i &p_motion_B, GodotCollisionSolver2D::CallbackResult p_result_callback, void *p_userdata, bool p_swap, Vector2 *sep_axis, real_t p_margin_A, real_t p_margin_B) {
 	PhysicsServer2D::ShapeType type_A = p_shape_A->get_type();
@@ -724,108 +585,60 @@ bool sat_2d_calculate_penetration(const GodotShape2D *p_shape_A, const Transform
 	ERR_FAIL_COND_V(type_B == PhysicsServer2D::SHAPE_WORLD_BOUNDARY, false);
 	ERR_FAIL_COND_V(type_B == PhysicsServer2D::SHAPE_SEPARATION_RAY, false);
 
-	static const CollisionFunc collision_table[3][3] = {
+	static const CollisionFunc collision_table[2][2] = {
 		{ _collision_segment_segment<false, false, false>,
-				_collision_segment_rectangle<false, false, false>,
-				_collision_segment_convex_polygon<false, false, false> },
+				_collision_segment_rectangle<false, false, false> },
 		{ nullptr,
-				_collision_rectangle_rectangle<false, false, false>,
-				_collision_rectangle_convex_polygon<false, false, false> },
-		{ nullptr,
-				nullptr,
-				_collision_convex_polygon_convex_polygon<false, false, false> }
-
+				_collision_rectangle_rectangle<false, false, false> }
 	};
 
-	static const CollisionFunc collision_table_castA[3][3] = {
+	static const CollisionFunc collision_table_castA[2][2] = {
 		{ _collision_segment_segment<true, false, false>,
-				_collision_segment_rectangle<true, false, false>,
-				_collision_segment_convex_polygon<true, false, false> },
+				_collision_segment_rectangle<true, false, false> },
 		{ nullptr,
-				_collision_rectangle_rectangle<true, false, false>,
-				_collision_rectangle_convex_polygon<true, false, false> },
-		{ nullptr,
-				nullptr,
-				_collision_convex_polygon_convex_polygon<true, false, false> }
-
+				_collision_rectangle_rectangle<true, false, false> }
 	};
 
-	static const CollisionFunc collision_table_castB[3][3] = {
+	static const CollisionFunc collision_table_castB[2][2] = {
 		{ _collision_segment_segment<false, true, false>,
-				_collision_segment_rectangle<false, true, false>,
-				_collision_segment_convex_polygon<false, true, false> },
+				_collision_segment_rectangle<false, true, false> },
 		{ nullptr,
-				_collision_rectangle_rectangle<false, true, false>,
-				_collision_rectangle_convex_polygon<false, true, false> },
-		{ nullptr,
-				nullptr,
-				_collision_convex_polygon_convex_polygon<false, true, false> }
-
+				_collision_rectangle_rectangle<false, true, false> }
 	};
 
-	static const CollisionFunc collision_table_castA_castB[3][3] = {
+	static const CollisionFunc collision_table_castA_castB[2][2] = {
 		{ _collision_segment_segment<true, true, false>,
-				_collision_segment_rectangle<true, true, false>,
-				_collision_segment_convex_polygon<true, true, false> },
+				_collision_segment_rectangle<true, true, false> },
 		{ nullptr,
-				_collision_rectangle_rectangle<true, true, false>,
-				_collision_rectangle_convex_polygon<true, true, false> },
-		{ nullptr,
-				nullptr,
-				_collision_convex_polygon_convex_polygon<true, true, false> }
-
+				_collision_rectangle_rectangle<true, true, false> }
 	};
 
-	static const CollisionFunc collision_table_margin[3][3] = {
+	static const CollisionFunc collision_table_margin[2][2] = {
 		{ _collision_segment_segment<false, false, true>,
-				_collision_segment_rectangle<false, false, true>,
-				_collision_segment_convex_polygon<false, false, true> },
+				_collision_segment_rectangle<false, false, true> },
 		{ nullptr,
-				_collision_rectangle_rectangle<false, false, true>,
-				_collision_rectangle_convex_polygon<false, false, true> },
-		{ nullptr,
-				nullptr,
-				_collision_convex_polygon_convex_polygon<false, false, true> }
-
+				_collision_rectangle_rectangle<false, false, true> }
 	};
 
-	static const CollisionFunc collision_table_castA_margin[3][3] = {
+	static const CollisionFunc collision_table_castA_margin[2][2] = {
 		{ _collision_segment_segment<true, false, true>,
-				_collision_segment_rectangle<true, false, true>,
-				_collision_segment_convex_polygon<true, false, true> },
+				_collision_segment_rectangle<true, false, true> },
 		{ nullptr,
-				_collision_rectangle_rectangle<true, false, true>,
-				_collision_rectangle_convex_polygon<true, false, true> },
-		{ nullptr,
-				nullptr,
-				_collision_convex_polygon_convex_polygon<true, false, true> }
-
+				_collision_rectangle_rectangle<true, false, true> }
 	};
 
-	static const CollisionFunc collision_table_castB_margin[3][3] = {
+	static const CollisionFunc collision_table_castB_margin[2][2] = {
 		{ _collision_segment_segment<false, true, true>,
-				_collision_segment_rectangle<false, true, true>,
-				_collision_segment_convex_polygon<false, true, true> },
+				_collision_segment_rectangle<false, true, true> },
 		{ nullptr,
-				_collision_rectangle_rectangle<false, true, true>,
-				_collision_rectangle_convex_polygon<false, true, true> },
-		{ nullptr,
-				nullptr,
-				_collision_convex_polygon_convex_polygon<false, true, true> }
-
+				_collision_rectangle_rectangle<false, true, true> }
 	};
 
-	static const CollisionFunc collision_table_castA_castB_margin[3][3] = {
+	static const CollisionFunc collision_table_castA_castB_margin[2][2] = {
 		{ _collision_segment_segment<true, true, true>,
-				_collision_segment_rectangle<true, true, true>,
-				_collision_segment_convex_polygon<true, true, true> },
+				_collision_segment_rectangle<true, true, true> },
 		{ nullptr,
-				_collision_rectangle_rectangle<true, true, true>,
-				_collision_rectangle_convex_polygon<true, true, true> },
-		{ nullptr,
-				nullptr,
-				_collision_convex_polygon_convex_polygon<true, true, true> }
-
+				_collision_rectangle_rectangle<true, true, true> }
 	};
 
 	_CollectorCallback2D callback;

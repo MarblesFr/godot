@@ -3373,285 +3373,285 @@ const Vector2i TileSetSource::INVALID_ATLAS_COORDS = Vector2i(-1, -1);
 const int TileSetSource::INVALID_TILE_ALTERNATIVE = -1;
 
 #ifndef DISABLE_DEPRECATED
-void TileSet::_compatibility_conversion() {
-	for (KeyValue<int, CompatibilityTileData *> &E : compatibility_data) {
-		CompatibilityTileData *ctd = E.value;
-
-		// Add the texture
-		TileSetAtlasSource *atlas_source = memnew(TileSetAtlasSource);
-		int source_id = add_source(Ref<TileSetSource>(atlas_source));
-
-		atlas_source->set_texture(ctd->texture);
-
-		// Handle each tile as a new source. Not optimal but at least it should stay compatible.
-		switch (ctd->tile_mode) {
-			case COMPATIBILITY_TILE_MODE_SINGLE_TILE: {
-				atlas_source->set_margins(ctd->region.get_position());
-				atlas_source->set_texture_region_size(ctd->region.get_size());
-
-				Vector2i coords;
-				for (int flags = 0; flags < 8; flags++) {
-					bool flip_h = flags & 1;
-					bool flip_v = flags & 2;
-					bool transpose = flags & 4;
-
-					Transform2D xform;
-					xform = flip_h ? xform.scaled(Size2(-1, 1)) : xform;
-					xform = flip_v ? xform.scaled(Size2(1, -1)) : xform;
-					xform = transpose ? Transform2D(xform[1], xform[0], Vector2()) : xform;
-
-					int alternative_tile = 0;
-					if (!atlas_source->has_tile(coords)) {
-						atlas_source->create_tile(coords);
-					} else {
-						alternative_tile = atlas_source->create_alternative_tile(coords);
-					}
-
-					// Add to the mapping.
-					Array key_array;
-					key_array.push_back(flip_h);
-					key_array.push_back(flip_v);
-					key_array.push_back(transpose);
-
-					Array value_array;
-					value_array.push_back(source_id);
-					value_array.push_back(coords);
-					value_array.push_back(alternative_tile);
-
-					if (!compatibility_tilemap_mapping.has(E.key)) {
-						compatibility_tilemap_mapping[E.key] = RBMap<Array, Array>();
-					}
-					compatibility_tilemap_mapping[E.key][key_array] = value_array;
-					compatibility_tilemap_mapping_tile_modes[E.key] = COMPATIBILITY_TILE_MODE_SINGLE_TILE;
-
-					TileData *tile_data = atlas_source->get_tile_data(coords, alternative_tile);
-					ERR_CONTINUE(!tile_data);
-
-					tile_data->set_flip_h(flip_h);
-					tile_data->set_flip_v(flip_v);
-					tile_data->set_transpose(transpose);
-					tile_data->set_material(ctd->material);
-					tile_data->set_modulate(ctd->modulate);
-					tile_data->set_z_index(ctd->z_index);
-
-					if (ctd->occluder.is_valid()) {
-						if (get_occlusion_layers_count() < 1) {
-							add_occlusion_layer();
-						};
-						Ref<OccluderPolygon2D> occluder = ctd->occluder->duplicate();
-						Vector<Vector2> polygon = ctd->occluder->get_polygon();
-						for (int index = 0; index < polygon.size(); index++) {
-							polygon.write[index] = xform.xform(polygon[index] - ctd->region.get_size() / 2.0);
-						}
-						occluder->set_polygon(polygon);
-						tile_data->set_occluder(0, occluder);
-					}
-					if (ctd->navigation.is_valid()) {
-						if (get_navigation_layers_count() < 1) {
-							add_navigation_layer();
-						}
-						Ref<NavigationPolygon> navigation = ctd->navigation->duplicate();
-						Vector<Vector2> vertices = navigation->get_vertices();
-						for (int index = 0; index < vertices.size(); index++) {
-							vertices.write[index] = xform.xform(vertices[index] - ctd->region.get_size() / 2.0);
-						}
-						navigation->set_vertices(vertices);
-						tile_data->set_navigation_polygon(0, navigation);
-					}
-
-					tile_data->set_z_index(ctd->z_index);
-
-					// Add the shapes.
-					if (ctd->shapes.size() > 0) {
-						if (get_physics_layers_count() < 1) {
-							add_physics_layer();
-						}
-					}
-					for (int k = 0; k < ctd->shapes.size(); k++) {
-						CompatibilityShapeData csd = ctd->shapes[k];
-						if (csd.autotile_coords == coords) {
-							Ref<ConvexPolygonShape2D> convex_shape = csd.shape; // Only ConvexPolygonShape2D are supported, which is the default type used by the 3.x editor
-							if (convex_shape.is_valid()) {
-								Vector<Vector2i> polygon = convex_shape->get_points();
-								for (int point_index = 0; point_index < polygon.size(); point_index++) {
-									polygon.write[point_index] = xform.xform(csd.transform.xform(polygon[point_index]) - ctd->region.get_size() / 2.0);
-								}
-								tile_data->set_collision_polygons_count(0, tile_data->get_collision_polygons_count(0) + 1);
-								int index = tile_data->get_collision_polygons_count(0) - 1;
-								tile_data->set_collision_polygon_one_way(0, index, csd.one_way);
-								tile_data->set_collision_polygon_points(0, index, polygon);
-							}
-						}
-					}
-				}
-				// Update the size count.
-				if (!compatibility_size_count.has(ctd->region.get_size())) {
-					compatibility_size_count[ctd->region.get_size()] = 0;
-				}
-				compatibility_size_count[ctd->region.get_size()]++;
-			} break;
-			case COMPATIBILITY_TILE_MODE_AUTO_TILE: {
-				// Not supported. It would need manual conversion.
-				WARN_PRINT_ONCE("Could not convert 3.x autotiles to 4.x. This operation cannot be done automatically, autotiles must be re-created using the terrain system.");
-			} break;
-			case COMPATIBILITY_TILE_MODE_ATLAS_TILE: {
-				atlas_source->set_margins(ctd->region.get_position());
-				atlas_source->set_separation(Vector2i(ctd->autotile_spacing, ctd->autotile_spacing));
-				atlas_source->set_texture_region_size(ctd->autotile_tile_size);
-
-				Size2i atlas_size = ctd->region.get_size() / (ctd->autotile_tile_size + atlas_source->get_separation());
-				for (int i = 0; i < atlas_size.x; i++) {
-					for (int j = 0; j < atlas_size.y; j++) {
-						Vector2i coords = Vector2i(i, j);
-
-						for (int flags = 0; flags < 8; flags++) {
-							bool flip_h = flags & 1;
-							bool flip_v = flags & 2;
-							bool transpose = flags & 4;
-
-							Transform2D xform;
-							xform = flip_h ? xform.scaled(Size2(-1, 1)) : xform;
-							xform = flip_v ? xform.scaled(Size2(1, -1)) : xform;
-							xform = transpose ? Transform2D(xform[1], xform[0], Vector2()) : xform;
-
-							int alternative_tile = 0;
-							if (!atlas_source->has_tile(coords)) {
-								atlas_source->create_tile(coords);
-							} else {
-								alternative_tile = atlas_source->create_alternative_tile(coords);
-							}
-
-							// Add to the mapping.
-							Array key_array;
-							key_array.push_back(coords);
-							key_array.push_back(flip_h);
-							key_array.push_back(flip_v);
-							key_array.push_back(transpose);
-
-							Array value_array;
-							value_array.push_back(source_id);
-							value_array.push_back(coords);
-							value_array.push_back(alternative_tile);
-
-							if (!compatibility_tilemap_mapping.has(E.key)) {
-								compatibility_tilemap_mapping[E.key] = RBMap<Array, Array>();
-							}
-							compatibility_tilemap_mapping[E.key][key_array] = value_array;
-							compatibility_tilemap_mapping_tile_modes[E.key] = COMPATIBILITY_TILE_MODE_ATLAS_TILE;
-
-							TileData *tile_data = atlas_source->get_tile_data(coords, alternative_tile);
-
-							tile_data->set_flip_h(flip_h);
-							tile_data->set_flip_v(flip_v);
-							tile_data->set_transpose(transpose);
-							tile_data->set_material(ctd->material);
-							tile_data->set_modulate(ctd->modulate);
-							tile_data->set_z_index(ctd->z_index);
-							if (ctd->autotile_occluder_map.has(coords)) {
-								if (get_occlusion_layers_count() < 1) {
-									add_occlusion_layer();
-								}
-								Ref<OccluderPolygon2D> occluder = ctd->autotile_occluder_map[coords]->duplicate();
-								Vector<Vector2> polygon = ctd->occluder->get_polygon();
-								for (int index = 0; index < polygon.size(); index++) {
-									polygon.write[index] = xform.xform(polygon[index] - ctd->region.get_size() / 2.0);
-								}
-								occluder->set_polygon(polygon);
-								tile_data->set_occluder(0, occluder);
-							}
-							if (ctd->autotile_navpoly_map.has(coords)) {
-								if (get_navigation_layers_count() < 1) {
-									add_navigation_layer();
-								}
-								Ref<NavigationPolygon> navigation = ctd->autotile_navpoly_map[coords]->duplicate();
-								Vector<Vector2> vertices = navigation->get_vertices();
-								for (int index = 0; index < vertices.size(); index++) {
-									vertices.write[index] = xform.xform(vertices[index] - ctd->region.get_size() / 2.0);
-								}
-								navigation->set_vertices(vertices);
-								tile_data->set_navigation_polygon(0, navigation);
-							}
-							if (ctd->autotile_priority_map.has(coords)) {
-								tile_data->set_probability(ctd->autotile_priority_map[coords]);
-							}
-							if (ctd->autotile_z_index_map.has(coords)) {
-								tile_data->set_z_index(ctd->autotile_z_index_map[coords]);
-							}
-
-							// Add the shapes.
-							if (ctd->shapes.size() > 0) {
-								if (get_physics_layers_count() < 1) {
-									add_physics_layer();
-								}
-							}
-							for (int k = 0; k < ctd->shapes.size(); k++) {
-								CompatibilityShapeData csd = ctd->shapes[k];
-								if (csd.autotile_coords == coords) {
-									Ref<ConvexPolygonShape2D> convex_shape = csd.shape; // Only ConvexPolygonShape2D are supported, which is the default type used by the 3.x editor
-									if (convex_shape.is_valid()) {
-										Vector<Vector2i> polygon = convex_shape->get_points();
-										for (int point_index = 0; point_index < polygon.size(); point_index++) {
-											polygon.write[point_index] = xform.xform(csd.transform.xform(polygon[point_index]) - ctd->autotile_tile_size / 2.0);
-										}
-										tile_data->set_collision_polygons_count(0, tile_data->get_collision_polygons_count(0) + 1);
-										int index = tile_data->get_collision_polygons_count(0) - 1;
-										tile_data->set_collision_polygon_one_way(0, index, csd.one_way);
-										tile_data->set_collision_polygon_points(0, index, polygon);
-									}
-								}
-							}
-
-							// -- TODO: handle --
-							// Those are offset for the whole atlas, they are likely useless for the atlases, but might make sense for single tiles.
-							// texture offset
-							// occluder_offset
-							// navigation_offset
-
-							// For terrains, ignored for now?
-							// bitmask_mode
-							// bitmask_flags
-						}
-					}
-				}
-
-				// Update the size count.
-				if (!compatibility_size_count.has(ctd->region.get_size())) {
-					compatibility_size_count[ctd->autotile_tile_size] = 0;
-				}
-				compatibility_size_count[ctd->autotile_tile_size] += atlas_size.x * atlas_size.y;
-			} break;
-		}
-
-		// Offset all shapes
-		for (int k = 0; k < ctd->shapes.size(); k++) {
-			Ref<ConvexPolygonShape2D> convex = ctd->shapes[k].shape;
-			if (convex.is_valid()) {
-				Vector<Vector2i> points = convex->get_points();
-				for (int i_point = 0; i_point < points.size(); i_point++) {
-					points.write[i_point] = points[i_point] - get_tile_size() / 2;
-				}
-				convex->set_points(points);
-			}
-		}
-	}
-
-	// Update the TileSet tile_size according to the most common size found.
-	Vector2i max_size = get_tile_size();
-	int max_count = 0;
-	for (KeyValue<Vector2i, int> kv : compatibility_size_count) {
-		if (kv.value > max_count) {
-			max_size = kv.key;
-			max_count = kv.value;
-		}
-	}
-	set_tile_size(max_size);
-
-	// Reset compatibility data (besides the histogram counts)
-	for (const KeyValue<int, CompatibilityTileData *> &E : compatibility_data) {
-		memdelete(E.value);
-	}
-	compatibility_data = HashMap<int, CompatibilityTileData *>();
-}
+//void TileSet::_compatibility_conversion() {
+//	for (KeyValue<int, CompatibilityTileData *> &E : compatibility_data) {
+//		CompatibilityTileData *ctd = E.value;
+//
+//		// Add the texture
+//		TileSetAtlasSource *atlas_source = memnew(TileSetAtlasSource);
+//		int source_id = add_source(Ref<TileSetSource>(atlas_source));
+//
+//		atlas_source->set_texture(ctd->texture);
+//
+//		// Handle each tile as a new source. Not optimal but at least it should stay compatible.
+//		switch (ctd->tile_mode) {
+//			case COMPATIBILITY_TILE_MODE_SINGLE_TILE: {
+//				atlas_source->set_margins(ctd->region.get_position());
+//				atlas_source->set_texture_region_size(ctd->region.get_size());
+//
+//				Vector2i coords;
+//				for (int flags = 0; flags < 8; flags++) {
+//					bool flip_h = flags & 1;
+//					bool flip_v = flags & 2;
+//					bool transpose = flags & 4;
+//
+//					Transform2D xform;
+//					xform = flip_h ? xform.scaled(Size2(-1, 1)) : xform;
+//					xform = flip_v ? xform.scaled(Size2(1, -1)) : xform;
+//					xform = transpose ? Transform2D(xform[1], xform[0], Vector2()) : xform;
+//
+//					int alternative_tile = 0;
+//					if (!atlas_source->has_tile(coords)) {
+//						atlas_source->create_tile(coords);
+//					} else {
+//						alternative_tile = atlas_source->create_alternative_tile(coords);
+//					}
+//
+//					// Add to the mapping.
+//					Array key_array;
+//					key_array.push_back(flip_h);
+//					key_array.push_back(flip_v);
+//					key_array.push_back(transpose);
+//
+//					Array value_array;
+//					value_array.push_back(source_id);
+//					value_array.push_back(coords);
+//					value_array.push_back(alternative_tile);
+//
+//					if (!compatibility_tilemap_mapping.has(E.key)) {
+//						compatibility_tilemap_mapping[E.key] = RBMap<Array, Array>();
+//					}
+//					compatibility_tilemap_mapping[E.key][key_array] = value_array;
+//					compatibility_tilemap_mapping_tile_modes[E.key] = COMPATIBILITY_TILE_MODE_SINGLE_TILE;
+//
+//					TileData *tile_data = atlas_source->get_tile_data(coords, alternative_tile);
+//					ERR_CONTINUE(!tile_data);
+//
+//					tile_data->set_flip_h(flip_h);
+//					tile_data->set_flip_v(flip_v);
+//					tile_data->set_transpose(transpose);
+//					tile_data->set_material(ctd->material);
+//					tile_data->set_modulate(ctd->modulate);
+//					tile_data->set_z_index(ctd->z_index);
+//
+//					if (ctd->occluder.is_valid()) {
+//						if (get_occlusion_layers_count() < 1) {
+//							add_occlusion_layer();
+//						};
+//						Ref<OccluderPolygon2D> occluder = ctd->occluder->duplicate();
+//						Vector<Vector2> polygon = ctd->occluder->get_polygon();
+//						for (int index = 0; index < polygon.size(); index++) {
+//							polygon.write[index] = xform.xform(polygon[index] - ctd->region.get_size() / 2.0);
+//						}
+//						occluder->set_polygon(polygon);
+//						tile_data->set_occluder(0, occluder);
+//					}
+//					if (ctd->navigation.is_valid()) {
+//						if (get_navigation_layers_count() < 1) {
+//							add_navigation_layer();
+//						}
+//						Ref<NavigationPolygon> navigation = ctd->navigation->duplicate();
+//						Vector<Vector2> vertices = navigation->get_vertices();
+//						for (int index = 0; index < vertices.size(); index++) {
+//							vertices.write[index] = xform.xform(vertices[index] - ctd->region.get_size() / 2.0);
+//						}
+//						navigation->set_vertices(vertices);
+//						tile_data->set_navigation_polygon(0, navigation);
+//					}
+//
+//					tile_data->set_z_index(ctd->z_index);
+//
+//					// Add the shapes.
+//					if (ctd->shapes.size() > 0) {
+//						if (get_physics_layers_count() < 1) {
+//							add_physics_layer();
+//						}
+//					}
+//					for (int k = 0; k < ctd->shapes.size(); k++) {
+//						CompatibilityShapeData csd = ctd->shapes[k];
+//						if (csd.autotile_coords == coords) {
+//							Ref<ConvexPolygonShape2D> convex_shape = csd.shape; // Only ConvexPolygonShape2D are supported, which is the default type used by the 3.x editor
+//							if (convex_shape.is_valid()) {
+//								Vector<Vector2i> polygon = convex_shape->get_points();
+//								for (int point_index = 0; point_index < polygon.size(); point_index++) {
+//									polygon.write[point_index] = xform.xform(csd.transform.xform(polygon[point_index]) - ctd->region.get_size() / 2.0);
+//								}
+//								tile_data->set_collision_polygons_count(0, tile_data->get_collision_polygons_count(0) + 1);
+//								int index = tile_data->get_collision_polygons_count(0) - 1;
+//								tile_data->set_collision_polygon_one_way(0, index, csd.one_way);
+//								tile_data->set_collision_polygon_points(0, index, polygon);
+//							}
+//						}
+//					}
+//				}
+//				// Update the size count.
+//				if (!compatibility_size_count.has(ctd->region.get_size())) {
+//					compatibility_size_count[ctd->region.get_size()] = 0;
+//				}
+//				compatibility_size_count[ctd->region.get_size()]++;
+//			} break;
+//			case COMPATIBILITY_TILE_MODE_AUTO_TILE: {
+//				// Not supported. It would need manual conversion.
+//				WARN_PRINT_ONCE("Could not convert 3.x autotiles to 4.x. This operation cannot be done automatically, autotiles must be re-created using the terrain system.");
+//			} break;
+//			case COMPATIBILITY_TILE_MODE_ATLAS_TILE: {
+//				atlas_source->set_margins(ctd->region.get_position());
+//				atlas_source->set_separation(Vector2i(ctd->autotile_spacing, ctd->autotile_spacing));
+//				atlas_source->set_texture_region_size(ctd->autotile_tile_size);
+//
+//				Size2i atlas_size = ctd->region.get_size() / (ctd->autotile_tile_size + atlas_source->get_separation());
+//				for (int i = 0; i < atlas_size.x; i++) {
+//					for (int j = 0; j < atlas_size.y; j++) {
+//						Vector2i coords = Vector2i(i, j);
+//
+//						for (int flags = 0; flags < 8; flags++) {
+//							bool flip_h = flags & 1;
+//							bool flip_v = flags & 2;
+//							bool transpose = flags & 4;
+//
+//							Transform2D xform;
+//							xform = flip_h ? xform.scaled(Size2(-1, 1)) : xform;
+//							xform = flip_v ? xform.scaled(Size2(1, -1)) : xform;
+//							xform = transpose ? Transform2D(xform[1], xform[0], Vector2()) : xform;
+//
+//							int alternative_tile = 0;
+//							if (!atlas_source->has_tile(coords)) {
+//								atlas_source->create_tile(coords);
+//							} else {
+//								alternative_tile = atlas_source->create_alternative_tile(coords);
+//							}
+//
+//							// Add to the mapping.
+//							Array key_array;
+//							key_array.push_back(coords);
+//							key_array.push_back(flip_h);
+//							key_array.push_back(flip_v);
+//							key_array.push_back(transpose);
+//
+//							Array value_array;
+//							value_array.push_back(source_id);
+//							value_array.push_back(coords);
+//							value_array.push_back(alternative_tile);
+//
+//							if (!compatibility_tilemap_mapping.has(E.key)) {
+//								compatibility_tilemap_mapping[E.key] = RBMap<Array, Array>();
+//							}
+//							compatibility_tilemap_mapping[E.key][key_array] = value_array;
+//							compatibility_tilemap_mapping_tile_modes[E.key] = COMPATIBILITY_TILE_MODE_ATLAS_TILE;
+//
+//							TileData *tile_data = atlas_source->get_tile_data(coords, alternative_tile);
+//
+//							tile_data->set_flip_h(flip_h);
+//							tile_data->set_flip_v(flip_v);
+//							tile_data->set_transpose(transpose);
+//							tile_data->set_material(ctd->material);
+//							tile_data->set_modulate(ctd->modulate);
+//							tile_data->set_z_index(ctd->z_index);
+//							if (ctd->autotile_occluder_map.has(coords)) {
+//								if (get_occlusion_layers_count() < 1) {
+//									add_occlusion_layer();
+//								}
+//								Ref<OccluderPolygon2D> occluder = ctd->autotile_occluder_map[coords]->duplicate();
+//								Vector<Vector2> polygon = ctd->occluder->get_polygon();
+//								for (int index = 0; index < polygon.size(); index++) {
+//									polygon.write[index] = xform.xform(polygon[index] - ctd->region.get_size() / 2.0);
+//								}
+//								occluder->set_polygon(polygon);
+//								tile_data->set_occluder(0, occluder);
+//							}
+//							if (ctd->autotile_navpoly_map.has(coords)) {
+//								if (get_navigation_layers_count() < 1) {
+//									add_navigation_layer();
+//								}
+//								Ref<NavigationPolygon> navigation = ctd->autotile_navpoly_map[coords]->duplicate();
+//								Vector<Vector2> vertices = navigation->get_vertices();
+//								for (int index = 0; index < vertices.size(); index++) {
+//									vertices.write[index] = xform.xform(vertices[index] - ctd->region.get_size() / 2.0);
+//								}
+//								navigation->set_vertices(vertices);
+//								tile_data->set_navigation_polygon(0, navigation);
+//							}
+//							if (ctd->autotile_priority_map.has(coords)) {
+//								tile_data->set_probability(ctd->autotile_priority_map[coords]);
+//							}
+//							if (ctd->autotile_z_index_map.has(coords)) {
+//								tile_data->set_z_index(ctd->autotile_z_index_map[coords]);
+//							}
+//
+//							// Add the shapes.
+//							if (ctd->shapes.size() > 0) {
+//								if (get_physics_layers_count() < 1) {
+//									add_physics_layer();
+//								}
+//							}
+//							for (int k = 0; k < ctd->shapes.size(); k++) {
+//								CompatibilityShapeData csd = ctd->shapes[k];
+//								if (csd.autotile_coords == coords) {
+//									Ref<ConvexPolygonShape2D> convex_shape = csd.shape; // Only ConvexPolygonShape2D are supported, which is the default type used by the 3.x editor
+//									if (convex_shape.is_valid()) {
+//										Vector<Vector2i> polygon = convex_shape->get_points();
+//										for (int point_index = 0; point_index < polygon.size(); point_index++) {
+//											polygon.write[point_index] = xform.xform(csd.transform.xform(polygon[point_index]) - ctd->autotile_tile_size / 2.0);
+//										}
+//										tile_data->set_collision_polygons_count(0, tile_data->get_collision_polygons_count(0) + 1);
+//										int index = tile_data->get_collision_polygons_count(0) - 1;
+//										tile_data->set_collision_polygon_one_way(0, index, csd.one_way);
+//										tile_data->set_collision_polygon_points(0, index, polygon);
+//									}
+//								}
+//							}
+//
+//							// -- TODO: handle --
+//							// Those are offset for the whole atlas, they are likely useless for the atlases, but might make sense for single tiles.
+//							// texture offset
+//							// occluder_offset
+//							// navigation_offset
+//
+//							// For terrains, ignored for now?
+//							// bitmask_mode
+//							// bitmask_flags
+//						}
+//					}
+//				}
+//
+//				// Update the size count.
+//				if (!compatibility_size_count.has(ctd->region.get_size())) {
+//					compatibility_size_count[ctd->autotile_tile_size] = 0;
+//				}
+//				compatibility_size_count[ctd->autotile_tile_size] += atlas_size.x * atlas_size.y;
+//			} break;
+//		}
+//
+//		// Offset all shapes
+//		for (int k = 0; k < ctd->shapes.size(); k++) {
+//			Ref<ConvexPolygonShape2D> convex = ctd->shapes[k].shape;
+//			if (convex.is_valid()) {
+//				Vector<Vector2i> points = convex->get_points();
+//				for (int i_point = 0; i_point < points.size(); i_point++) {
+//					points.write[i_point] = points[i_point] - get_tile_size() / 2;
+//				}
+//				convex->set_points(points);
+//			}
+//		}
+//	}
+//
+//	// Update the TileSet tile_size according to the most common size found.
+//	Vector2i max_size = get_tile_size();
+//	int max_count = 0;
+//	for (KeyValue<Vector2i, int> kv : compatibility_size_count) {
+//		if (kv.value > max_count) {
+//			max_size = kv.key;
+//			max_count = kv.value;
+//		}
+//	}
+//	set_tile_size(max_size);
+//
+//	// Reset compatibility data (besides the histogram counts)
+//	for (const KeyValue<int, CompatibilityTileData *> &E : compatibility_data) {
+//		memdelete(E.value);
+//	}
+//	compatibility_data = HashMap<int, CompatibilityTileData *>();
+//}
 
 Array TileSet::compatibility_tilemap_map(int p_tile_id, Vector2i p_coords, bool p_flip_h, bool p_flip_v, bool p_transpose) {
 	Array cannot_convert_array;
@@ -3849,7 +3849,7 @@ bool TileSet::_set(const StringName &p_name, const Variant &p_value) {
 			ctd->z_index = p_value;
 
 			// TODO: remove the conversion from here, it's not where it should be done (see #50691)
-			_compatibility_conversion();
+//			_compatibility_conversion();
 		} else {
 			return false;
 		}
@@ -6257,116 +6257,98 @@ real_t TileData::get_constant_angular_velocity(int p_layer_id) const {
 	return physics[p_layer_id].angular_velocity;
 }
 
-void TileData::set_collision_polygons_count(int p_layer_id, int p_polygons_count) {
+void TileData::set_collision_rectangles_count(int p_layer_id, int p_rectangles_count) {
 	ERR_FAIL_INDEX(p_layer_id, physics.size());
-	ERR_FAIL_COND(p_polygons_count < 0);
-	if (p_polygons_count == physics.write[p_layer_id].polygons.size()) {
+	ERR_FAIL_COND(p_rectangles_count < 0);
+	if (p_rectangles_count == physics.write[p_layer_id].rectangles.size()) {
 		return;
 	}
-	physics.write[p_layer_id].polygons.resize(p_polygons_count);
+	physics.write[p_layer_id].rectangles.resize(p_rectangles_count);
 	notify_property_list_changed();
 	emit_signal(CoreStringName(changed));
 }
 
-int TileData::get_collision_polygons_count(int p_layer_id) const {
+int TileData::get_collision_rectangles_count(int p_layer_id) const {
 	ERR_FAIL_INDEX_V(p_layer_id, physics.size(), 0);
-	return physics[p_layer_id].polygons.size();
+	return physics[p_layer_id].rectangles.size();
 }
 
-void TileData::add_collision_polygon(int p_layer_id) {
+void TileData::add_collision_rectangle(int p_layer_id) {
 	ERR_FAIL_INDEX(p_layer_id, physics.size());
-	physics.write[p_layer_id].polygons.push_back(PhysicsLayerTileData::PolygonShapeTileData());
+	physics.write[p_layer_id].rectangles.push_back(PhysicsLayerTileData::PolygonShapeTileData());
 	emit_signal(CoreStringName(changed));
 }
 
-void TileData::remove_collision_polygon(int p_layer_id, int p_polygon_index) {
+void TileData::remove_collision_rectangle(int p_layer_id, int p_rectangle_index) {
 	ERR_FAIL_INDEX(p_layer_id, physics.size());
-	ERR_FAIL_INDEX(p_polygon_index, physics[p_layer_id].polygons.size());
-	physics.write[p_layer_id].polygons.remove_at(p_polygon_index);
+	ERR_FAIL_INDEX(p_rectangle_index, physics[p_layer_id].rectangles.size());
+	physics.write[p_layer_id].rectangles.remove_at(p_rectangle_index);
 	emit_signal(CoreStringName(changed));
 }
 
-void TileData::set_collision_polygon_points(int p_layer_id, int p_polygon_index, Vector<Vector2i> p_polygon) {
+void TileData::set_collision_rectangle_data(int p_layer_id, int p_rectangle_index, Vector<Vector2i> p_data) {
 	ERR_FAIL_INDEX(p_layer_id, physics.size());
-	ERR_FAIL_INDEX(p_polygon_index, physics[p_layer_id].polygons.size());
-	ERR_FAIL_COND_MSG(p_polygon.size() != 0 && p_polygon.size() < 3, "Invalid polygon. Needs either 0 or more than 3 points.");
+	ERR_FAIL_INDEX(p_rectangle_index, physics[p_layer_id].rectangles.size());
+	ERR_FAIL_COND(p_data.size() != 2);
 
-	TileData::PhysicsLayerTileData::PolygonShapeTileData &polygon_shape_tile_data = physics.write[p_layer_id].polygons.write[p_polygon_index];
+	TileData::PhysicsLayerTileData::PolygonShapeTileData &rectangle_shape_tile_data = physics.write[p_layer_id].rectangles.write[p_rectangle_index];
 
-	if (p_polygon.is_empty()) {
-		polygon_shape_tile_data.shapes.clear();
-	} else {
-		// Decompose into convex shapes.
-		Vector<Vector<Vector2i>> decomp = Geometry2D::decompose_polygon_in_convex(p_polygon);
-		ERR_FAIL_COND_MSG(decomp.is_empty(), "Could not decompose the polygon into convex shapes.");
-
-		polygon_shape_tile_data.shapes.resize(decomp.size());
-		for (int i = 0; i < decomp.size(); i++) {
-			Ref<ConvexPolygonShape2D> shape;
-			shape.instantiate();
-			shape->set_points(decomp[i]);
-			polygon_shape_tile_data.shapes[i] = shape;
-		}
-	}
-	polygon_shape_tile_data.transformed_shapes.clear();
-	polygon_shape_tile_data.polygon = p_polygon;
+	Ref<RectangleShape2D> shape;
+	shape.instantiate();
+	shape->set_size(p_data[0]);
+	shape->set_offset(p_data[1]);
+	rectangle_shape_tile_data.shape = shape;
+	rectangle_shape_tile_data.transformed_shape.clear();
 	emit_signal(CoreStringName(changed));
 }
 
-Vector<Vector2i> TileData::get_collision_polygon_points(int p_layer_id, int p_polygon_index) const {
+Vector<Vector2i> TileData::get_collision_rectangle_data(int p_layer_id, int p_rectangle_index) const {
 	ERR_FAIL_INDEX_V(p_layer_id, physics.size(), Vector<Vector2i>());
-	ERR_FAIL_INDEX_V(p_polygon_index, physics[p_layer_id].polygons.size(), Vector<Vector2i>());
-	return physics[p_layer_id].polygons[p_polygon_index].polygon;
+	ERR_FAIL_INDEX_V(p_rectangle_index, physics[p_layer_id].rectangles.size(), Vector<Vector2i>());
+	Vector<Vector2i> data;
+	data.push_back(physics[p_layer_id].rectangles[p_rectangle_index].shape->get_size());
+	data.push_back(physics[p_layer_id].rectangles[p_rectangle_index].shape->get_offset());
+	return data;
 }
 
-void TileData::set_collision_polygon_one_way(int p_layer_id, int p_polygon_index, bool p_one_way) {
+void TileData::set_collision_rectangle_one_way(int p_layer_id, int p_rectangle_index, bool p_one_way) {
 	ERR_FAIL_INDEX(p_layer_id, physics.size());
-	ERR_FAIL_INDEX(p_polygon_index, physics[p_layer_id].polygons.size());
-	physics.write[p_layer_id].polygons.write[p_polygon_index].one_way = p_one_way;
+	ERR_FAIL_INDEX(p_rectangle_index, physics[p_layer_id].rectangles.size());
+	physics.write[p_layer_id].rectangles.write[p_rectangle_index].one_way = p_one_way;
 	emit_signal(CoreStringName(changed));
 }
 
-bool TileData::is_collision_polygon_one_way(int p_layer_id, int p_polygon_index) const {
+bool TileData::is_collision_rectangle_one_way(int p_layer_id, int p_rectangle_index) const {
 	ERR_FAIL_INDEX_V(p_layer_id, physics.size(), false);
-	ERR_FAIL_INDEX_V(p_polygon_index, physics[p_layer_id].polygons.size(), false);
-	return physics[p_layer_id].polygons[p_polygon_index].one_way;
+	ERR_FAIL_INDEX_V(p_rectangle_index, physics[p_layer_id].rectangles.size(), false);
+	return physics[p_layer_id].rectangles[p_rectangle_index].one_way;
 }
 
-int TileData::get_collision_polygon_shapes_count(int p_layer_id, int p_polygon_index) const {
-	ERR_FAIL_INDEX_V(p_layer_id, physics.size(), 0);
-	ERR_FAIL_INDEX_V(p_polygon_index, physics[p_layer_id].polygons.size(), 0);
-	return physics[p_layer_id].polygons[p_polygon_index].shapes.size();
-}
-
-Ref<ConvexPolygonShape2D> TileData::get_collision_polygon_shape(int p_layer_id, int p_polygon_index, int shape_index, bool p_flip_h, bool p_flip_v, bool p_transpose) const {
-	ERR_FAIL_INDEX_V(p_layer_id, physics.size(), Ref<ConvexPolygonShape2D>());
-	ERR_FAIL_INDEX_V(p_polygon_index, physics[p_layer_id].polygons.size(), Ref<ConvexPolygonShape2D>());
-	ERR_FAIL_INDEX_V(shape_index, (int)physics[p_layer_id].polygons[p_polygon_index].shapes.size(), Ref<ConvexPolygonShape2D>());
+Ref<RectangleShape2D> TileData::get_collision_rectangle_shape(int p_layer_id, int p_rectangle_index, bool p_flip_h, bool p_flip_v, bool p_transpose) const {
+	ERR_FAIL_INDEX_V(p_layer_id, physics.size(), Ref<RectangleShape2D>());
+	ERR_FAIL_INDEX_V(p_rectangle_index, physics[p_layer_id].rectangles.size(), Ref<RectangleShape2D>());
 
 	const PhysicsLayerTileData &layer_tile_data = physics[p_layer_id];
-	const PhysicsLayerTileData::PolygonShapeTileData &shapes_data = layer_tile_data.polygons[p_polygon_index];
+	const PhysicsLayerTileData::PolygonShapeTileData &shapes_data = layer_tile_data.rectangles[p_rectangle_index];
 
 	int key = int(p_flip_h) | int(p_flip_v) << 1 | int(p_transpose) << 2;
 	if (key == 0) {
-		return shapes_data.shapes[shape_index];
+		return shapes_data.shape;
 	}
-	if (shapes_data.shapes[shape_index].is_null()) {
-		return Ref<ConvexPolygonShape2D>();
+	if (shapes_data.shape.is_null()) {
+		return Ref<RectangleShape2D>();
 	}
 
-	HashMap<int, LocalVector<Ref<ConvexPolygonShape2D>>>::Iterator I = shapes_data.transformed_shapes.find(key);
+	HashMap<int, Ref<RectangleShape2D>>::Iterator I = shapes_data.transformed_shape.find(key);
 	if (!I) {
-		int size = shapes_data.shapes.size();
-		shapes_data.transformed_shapes[key].resize(size);
-		for (int i = 0; i < size; i++) {
-			Ref<ConvexPolygonShape2D> transformed_polygon;
-			transformed_polygon.instantiate();
-			transformed_polygon->set_points(get_transformed_vertices(shapes_data.shapes[i]->get_points(), p_flip_h, p_flip_v, p_transpose));
-			shapes_data.transformed_shapes[key][i] = transformed_polygon;
-		}
-		return shapes_data.transformed_shapes[key][shape_index];
+		shapes_data.transformed_shape[key];
+		Ref<RectangleShape2D> transformed_rectangle;
+		transformed_rectangle.instantiate();
+		transformed_rectangle->set_offset(get_transformed_offset(shapes_data.shape->get_offset(), p_flip_h, p_flip_v, p_transpose));
+		shapes_data.transformed_shape[key] = transformed_rectangle;
+		return shapes_data.transformed_shape[key];
 	} else {
-		return I->value[shape_index];
+		return I->value;
 	}
 }
 
@@ -6552,31 +6534,21 @@ PackedVector2Array TileData::get_transformed_vertices(const PackedVector2Array &
 	return new_points;
 }
 
-PackedVector2iArray TileData::get_transformed_vertices(const PackedVector2iArray &p_vertices, bool p_flip_h, bool p_flip_v, bool p_transpose) {
-	const Vector2i *r = p_vertices.ptr();
-	int size = p_vertices.size();
-
-	PackedVector2iArray new_points;
-	new_points.resize(size);
-	Vector2i *w = new_points.ptrw();
-
-	for (int i = 0; i < size; i++) {
-		Vector2 v;
-		if (p_transpose) {
-			v = Vector2(r[i].y, r[i].x);
-		} else {
-			v = r[i];
-		}
-
-		if (p_flip_h) {
-			v.x *= -1;
-		}
-		if (p_flip_v) {
-			v.y *= -1;
-		}
-		w[i] = v;
+Vector2i TileData::get_transformed_offset(const Vector2i &p_offset, bool p_flip_h, bool p_flip_v, bool p_transpose) {
+	Vector2i new_offset;
+	if (p_transpose) {
+		new_offset = Vector2(p_offset.y, p_offset.x);
+	} else {
+		new_offset = p_offset;
 	}
-	return new_points;
+
+	if (p_flip_h) {
+		new_offset.x *= -1;
+	}
+	if (p_flip_v) {
+		new_offset.y *= -1;
+	}
+	return new_offset;
 }
 
 bool TileData::_set(const StringName &p_name, const Variant &p_value) {
@@ -6624,18 +6596,18 @@ bool TileData::_set(const StringName &p_name, const Variant &p_value) {
 			} else if (components[1] == "angular_velocity") {
 				set_constant_angular_velocity(layer_index, p_value);
 				return true;
-			} else if (components[1] == "polygons_count") {
+			} else if (components[1] == "rectangles_count") {
 				if (p_value.get_type() != Variant::INT) {
 					return false;
 				}
-				set_collision_polygons_count(layer_index, p_value);
+				set_collision_rectangles_count(layer_index, p_value);
 				return true;
 			}
-		} else if (components.size() == 3 && components[1].begins_with("polygon_") && components[1].trim_prefix("polygon_").is_valid_int()) {
-			int polygon_index = components[1].trim_prefix("polygon_").to_int();
-			ERR_FAIL_COND_V(polygon_index < 0, false);
+		} else if (components.size() == 3 && components[1].begins_with("rectangle_") && components[1].trim_prefix("rectangle_").is_valid_int()) {
+			int rectangle_index = components[1].trim_prefix("rectangle_").to_int();
+			ERR_FAIL_COND_V(rectangle_index < 0, false);
 
-			if (components[2] == "points" || components[2] == "one_way" || components[2] == "one_way_margin") {
+			if (components[2] == "data" || components[2] == "one_way") {
 				if (layer_index >= physics.size()) {
 					if (tile_set) {
 						return false;
@@ -6644,16 +6616,17 @@ bool TileData::_set(const StringName &p_name, const Variant &p_value) {
 					}
 				}
 
-				if (polygon_index >= physics[layer_index].polygons.size()) {
-					physics.write[layer_index].polygons.resize(polygon_index + 1);
+				if (rectangle_index >= physics[layer_index].rectangles.size()) {
+					physics.write[layer_index].rectangles.resize(rectangle_index + 1);
 				}
 			}
-			if (components[2] == "points") {
-				Vector<Vector2i> polygon = p_value;
-				set_collision_polygon_points(layer_index, polygon_index, polygon);
+			if (components[2] == "data") {
+				Vector<Vector2i> arr = p_value;
+				ERR_FAIL_COND_V(arr.size() != 2, false);
+				set_collision_rectangle_data(layer_index, rectangle_index, arr);
 				return true;
 			} else if (components[2] == "one_way") {
-				set_collision_polygon_one_way(layer_index, polygon_index, p_value);
+				set_collision_rectangle_one_way(layer_index, rectangle_index, p_value);
 				return true;
 			}
 		}
@@ -6741,21 +6714,21 @@ bool TileData::_get(const StringName &p_name, Variant &r_ret) const {
 				} else if (components[1] == "angular_velocity") {
 					r_ret = get_constant_angular_velocity(layer_index);
 					return true;
-				} else if (components[1] == "polygons_count") {
-					r_ret = get_collision_polygons_count(layer_index);
+				} else if (components[1] == "rectangles_count") {
+					r_ret = get_collision_rectangles_count(layer_index);
 					return true;
 				}
-			} else if (components.size() == 3 && components[1].begins_with("polygon_") && components[1].trim_prefix("polygon_").is_valid_int()) {
-				int polygon_index = components[1].trim_prefix("polygon_").to_int();
-				ERR_FAIL_COND_V(polygon_index < 0, false);
-				if (polygon_index >= physics[layer_index].polygons.size()) {
+			} else if (components.size() == 3 && components[1].begins_with("rectangle_") && components[1].trim_prefix("rectangle_").is_valid_int()) {
+				int rectangle_index = components[1].trim_prefix("rectangle_").to_int();
+				ERR_FAIL_COND_V(rectangle_index < 0, false);
+				if (rectangle_index >= physics[layer_index].rectangles.size()) {
 					return false;
 				}
-				if (components[2] == "points") {
-					r_ret = get_collision_polygon_points(layer_index, polygon_index);
+				if (components[2] == "data") {
+					r_ret = get_collision_rectangle_data(layer_index, rectangle_index);
 					return true;
 				} else if (components[2] == "one_way") {
-					r_ret = is_collision_polygon_one_way(layer_index, polygon_index);
+					r_ret = is_collision_rectangle_one_way(layer_index, rectangle_index);
 					return true;
 				}
 			}
@@ -6826,19 +6799,19 @@ void TileData::_get_property_list(List<PropertyInfo> *p_list) const {
 			}
 			p_list->push_back(property_info);
 
-			p_list->push_back(PropertyInfo(Variant::INT, vformat("physics_layer_%d/%s", i, PNAME("polygons_count")), PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR));
+			p_list->push_back(PropertyInfo(Variant::INT, vformat("physics_layer_%d/%s", i, PNAME("rectangles_count")), PROPERTY_HINT_NONE, "", PROPERTY_USAGE_EDITOR));
 
-			for (int j = 0; j < physics[i].polygons.size(); j++) {
+			for (int j = 0; j < physics[i].rectangles.size(); j++) {
 				// physics_layer_%d/points
-				property_info = PropertyInfo(Variant::ARRAY, vformat("physics_layer_%d/polygon_%d/%s", i, j, PNAME("points")), PROPERTY_HINT_ARRAY_TYPE, "Vector2", PROPERTY_USAGE_DEFAULT);
-				if (physics[i].polygons[j].polygon.is_empty()) {
+				property_info = PropertyInfo(Variant::ARRAY, vformat("physics_layer_%d/rectangle_%d/%s", i, j, PNAME("data")), PROPERTY_HINT_ARRAY_TYPE, "Vector2i", PROPERTY_USAGE_DEFAULT);
+				if (physics[i].rectangles[j].shape.is_null()) {
 					property_info.usage ^= PROPERTY_USAGE_STORAGE;
 				}
 				p_list->push_back(property_info);
 
-				// physics_layer_%d/polygon_%d/one_way
-				property_info = PropertyInfo(Variant::BOOL, vformat("physics_layer_%d/polygon_%d/%s", i, j, PNAME("one_way")));
-				if (physics[i].polygons[j].one_way == false) {
+				// physics_layer_%d/rectangle_%d/one_way
+				property_info = PropertyInfo(Variant::BOOL, vformat("physics_layer_%d/rectangle_%d/%s", i, j, PNAME("one_way")));
+				if (physics[i].rectangles[j].one_way == false) {
 					property_info.usage ^= PROPERTY_USAGE_STORAGE;
 				}
 				p_list->push_back(property_info);
@@ -6912,14 +6885,14 @@ void TileData::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_constant_linear_velocity", "layer_id"), &TileData::get_constant_linear_velocity);
 	ClassDB::bind_method(D_METHOD("set_constant_angular_velocity", "layer_id", "velocity"), &TileData::set_constant_angular_velocity);
 	ClassDB::bind_method(D_METHOD("get_constant_angular_velocity", "layer_id"), &TileData::get_constant_angular_velocity);
-	ClassDB::bind_method(D_METHOD("set_collision_polygons_count", "layer_id", "polygons_count"), &TileData::set_collision_polygons_count);
-	ClassDB::bind_method(D_METHOD("get_collision_polygons_count", "layer_id"), &TileData::get_collision_polygons_count);
-	ClassDB::bind_method(D_METHOD("add_collision_polygon", "layer_id"), &TileData::add_collision_polygon);
-	ClassDB::bind_method(D_METHOD("remove_collision_polygon", "layer_id", "polygon_index"), &TileData::remove_collision_polygon);
-	ClassDB::bind_method(D_METHOD("set_collision_polygon_points", "layer_id", "polygon_index", "polygon"), &TileData::set_collision_polygon_points);
-	ClassDB::bind_method(D_METHOD("get_collision_polygon_points", "layer_id", "polygon_index"), &TileData::get_collision_polygon_points);
-	ClassDB::bind_method(D_METHOD("set_collision_polygon_one_way", "layer_id", "polygon_index", "one_way"), &TileData::set_collision_polygon_one_way);
-	ClassDB::bind_method(D_METHOD("is_collision_polygon_one_way", "layer_id", "polygon_index"), &TileData::is_collision_polygon_one_way);
+	ClassDB::bind_method(D_METHOD("set_collision_rectangles_count", "layer_id", "rectangles_count"), &TileData::set_collision_rectangles_count);
+	ClassDB::bind_method(D_METHOD("get_collision_rectangles_count", "layer_id"), &TileData::get_collision_rectangles_count);
+	ClassDB::bind_method(D_METHOD("add_collision_rectangle", "layer_id"), &TileData::add_collision_rectangle);
+	ClassDB::bind_method(D_METHOD("remove_collision_rectangle", "layer_id", "rectangle_index"), &TileData::remove_collision_rectangle);
+	ClassDB::bind_method(D_METHOD("set_collision_rectangle_data", "layer_id", "rectangle_index", "p_rectangle"), &TileData::set_collision_rectangle_data);
+	ClassDB::bind_method(D_METHOD("get_collision_rectangle_data", "layer_id", "rectangle_index"), &TileData::get_collision_rectangle_data);
+	ClassDB::bind_method(D_METHOD("set_collision_rectangle_one_way", "layer_id", "rectangle_index", "one_way"), &TileData::set_collision_rectangle_one_way);
+	ClassDB::bind_method(D_METHOD("is_collision_rectangle_one_way", "layer_id", "rectangle_index"), &TileData::is_collision_rectangle_one_way);
 
 	// Terrain
 	ClassDB::bind_method(D_METHOD("set_terrain_set", "terrain_set"), &TileData::set_terrain_set);

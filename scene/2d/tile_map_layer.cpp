@@ -808,7 +808,7 @@ void TileMapLayer::_physics_update_cell(CellData &r_cell_data) {
 					uint32_t physics_mask = tile_set->get_physics_layer_collision_mask(tile_set_physics_layer);
 
 					RID body = r_cell_data.bodies[tile_set_physics_layer];
-					if (tile_data->get_collision_polygons_count(tile_set_physics_layer) == 0) {
+					if (tile_data->get_collision_rectangles_count(tile_set_physics_layer) == 0) {
 						// No body needed, free it if it exists.
 						if (body.is_valid()) {
 							bodies_coords.erase(body);
@@ -849,18 +849,13 @@ void TileMapLayer::_physics_update_cell(CellData &r_cell_data) {
 
 						// Add the shapes to the body.
 						int body_shape_index = 0;
-						for (int polygon_index = 0; polygon_index < tile_data->get_collision_polygons_count(tile_set_physics_layer); polygon_index++) {
-							// Iterate over the polygons.
-							bool one_way_collision = tile_data->is_collision_polygon_one_way(tile_set_physics_layer, polygon_index);
-							int shapes_count = tile_data->get_collision_polygon_shapes_count(tile_set_physics_layer, polygon_index);
-							for (int shape_index = 0; shape_index < shapes_count; shape_index++) {
-								// Add decomposed convex shapes.
-								Ref<ConvexPolygonShape2D> shape = tile_data->get_collision_polygon_shape(tile_set_physics_layer, polygon_index, shape_index, flip_h, flip_v, transpose);
-								ps->body_add_shape(body, shape->get_rid());
-								ps->body_set_shape_as_one_way_collision(body, body_shape_index, one_way_collision);
-
-								body_shape_index++;
-							}
+						for (int rectangle_index = 0; rectangle_index < tile_data->get_collision_rectangles_count(tile_set_physics_layer); rectangle_index++) {
+							// Iterate over the rectangles.
+							bool one_way_collision = tile_data->is_collision_rectangle_one_way(tile_set_physics_layer, rectangle_index);
+							Ref<RectangleShape2D> shape = tile_data->get_collision_rectangle_shape(tile_set_physics_layer, rectangle_index, flip_h, flip_v, transpose);
+							ps->body_add_shape(body, shape->get_rid());
+							ps->body_set_shape_as_one_way_collision(body, body_shape_index, one_way_collision);
+							body_shape_index++;
 						}
 					}
 
@@ -906,8 +901,7 @@ void TileMapLayer::_physics_draw_cell_debug(const RID &p_canvas_item, const Vect
 	PhysicsServer2D *ps = PhysicsServer2D::get_singleton();
 
 	Color debug_collision_color = get_tree()->get_debug_collisions_color();
-	Vector<Color> color;
-	color.push_back(debug_collision_color);
+	Color color = debug_collision_color;
 
 	Transform2Di quadrant_to_local(p_quadrant_pos);
 	Transform2Di global_to_quadrant = (get_global_transform_i() * quadrant_to_local).affine_inverse();
@@ -919,8 +913,12 @@ void TileMapLayer::_physics_draw_cell_debug(const RID &p_canvas_item, const Vect
 			for (int shape_index = 0; shape_index < ps->body_get_shape_count(body); shape_index++) {
 				const RID &shape = ps->body_get_shape(body, shape_index);
 				const PhysicsServer2D::ShapeType &type = ps->shape_get_type(shape);
-				if (type == PhysicsServer2D::SHAPE_CONVEX_POLYGON) {
-					rs->canvas_item_add_polygon(p_canvas_item, ps->shape_get_data(shape), color);
+				if (type == PhysicsServer2D::SHAPE_RECTANGLE) {
+					Array arr = ps->shape_get_data(shape);
+					ERR_FAIL_COND(arr.size() != 2);
+					Vector2i size = arr[0];
+					Vector2i offset = arr[1];
+					rs->canvas_item_add_rect(p_canvas_item, Rect2i(-(size / 2) + offset, size), color);
 				} else {
 					WARN_PRINT("Wrong shape type for a tile, should be SHAPE_CONVEX_POLYGON.");
 				}

@@ -35,7 +35,6 @@
 #include "editor/editor_node.h"
 #include "editor/editor_settings.h"
 #include "editor/editor_undo_redo_manager.h"
-#include "scene/resources/2d/convex_polygon_shape_2d.h"
 #include "scene/resources/2d/rectangle_shape_2d.h"
 #include "scene/resources/2d/segment_shape_2d.h"
 #include "scene/resources/2d/separation_ray_shape_2d.h"
@@ -53,9 +52,6 @@ void CollisionShape2DEditor::_node_removed(Node *p_node) {
 
 Variant CollisionShape2DEditor::get_handle_value(int idx) const {
 	switch (shape_type) {
-		case CONVEX_POLYGON_SHAPE: {
-		} break;
-
 		case WORLD_BOUNDARY_SHAPE: {
 			Ref<WorldBoundaryShape2D> world_boundary = node->get_shape();
 
@@ -102,9 +98,6 @@ Variant CollisionShape2DEditor::get_handle_value(int idx) const {
 
 void CollisionShape2DEditor::set_handle(int idx, Point2i &p_point) {
 	switch (shape_type) {
-		case CONVEX_POLYGON_SHAPE: {
-		} break;
-
 		case WORLD_BOUNDARY_SHAPE: {
 			if (idx < 2) {
 				Ref<WorldBoundaryShape2D> world_boundary = node->get_shape();
@@ -168,10 +161,6 @@ void CollisionShape2DEditor::commit_handle(int idx, Variant &p_org) {
 	undo_redo->create_action(TTR("Set Handle"));
 
 	switch (shape_type) {
-		case CONVEX_POLYGON_SHAPE: {
-			// Cannot be edited directly, use CollisionPolygon2D instead.
-		} break;
-
 		case WORLD_BOUNDARY_SHAPE: {
 			Ref<WorldBoundaryShape2D> world_boundary = node->get_shape();
 
@@ -334,9 +323,7 @@ void CollisionShape2DEditor::_shape_changed() {
 		return;
 	}
 
-	if (Object::cast_to<ConvexPolygonShape2D>(*current_shape)) {
-	shape_type = CONVEX_POLYGON_SHAPE;
-	} else if (Object::cast_to<WorldBoundaryShape2D>(*current_shape)) {
+	if (Object::cast_to<WorldBoundaryShape2D>(*current_shape)) {
 		shape_type = WORLD_BOUNDARY_SHAPE;
 	} else if (Object::cast_to<SeparationRayShape2D>(*current_shape)) {
 		shape_type = SEPARATION_RAY_SHAPE;
@@ -368,9 +355,6 @@ void CollisionShape2DEditor::forward_canvas_draw_over_viewport(Control *p_overla
 	handles.clear();
 
 	switch (shape_type) {
-		case CONVEX_POLYGON_SHAPE: {
-		} break;
-
 		case WORLD_BOUNDARY_SHAPE: {
 			Ref<WorldBoundaryShape2D> shape = current_shape;
 

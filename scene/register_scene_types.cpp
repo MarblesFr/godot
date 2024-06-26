@@ -184,7 +184,6 @@
 #include "scene/2d/physics/animatable_body_2d.h"
 #include "scene/2d/physics/area_2d.h"
 #include "scene/2d/physics/character_body_2d.h"
-#include "scene/2d/physics/collision_polygon_2d.h"
 #include "scene/2d/physics/collision_shape_2d.h"
 #include "scene/2d/physics/joints/damped_spring_joint_2d.h"
 #include "scene/2d/physics/joints/groove_joint_2d.h"
@@ -205,7 +204,6 @@
 #include "scene/2d/tile_map_layer.h"
 #include "scene/2d/touch_screen_button.h"
 #include "scene/2d/visible_on_screen_notifier_2d.h"
-#include "scene/resources/2d/convex_polygon_shape_2d.h"
 #include "scene/resources/2d/navigation_mesh_source_geometry_data_2d.h"
 #include "scene/resources/2d/navigation_polygon.h"
 #include "scene/resources/2d/polygon_path_finder.h"
@@ -791,7 +789,6 @@ void register_scene_types() {
 	GDREGISTER_CLASS(KinematicCollision2D);
 	GDREGISTER_CLASS(Area2D);
 	GDREGISTER_CLASS(CollisionShape2D);
-	GDREGISTER_CLASS(CollisionPolygon2D);
 	GDREGISTER_CLASS(RayCast2D);
 	GDREGISTER_CLASS(ShapeCast2D);
 	GDREGISTER_CLASS(VisibleOnScreenNotifier2D);
@@ -994,7 +991,6 @@ void register_scene_types() {
 	GDREGISTER_CLASS(SegmentShape2D);
 	GDREGISTER_CLASS(SeparationRayShape2D);
 	GDREGISTER_CLASS(RectangleShape2D);
-	GDREGISTER_CLASS(ConvexPolygonShape2D);
 	GDREGISTER_CLASS(Curve2D);
 	GDREGISTER_CLASS(Path2D);
 	GDREGISTER_CLASS(PathFollow2D);

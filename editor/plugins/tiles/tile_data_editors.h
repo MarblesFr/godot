@@ -307,6 +307,109 @@ public:
 	GenericTilePolygonIEditor();
 };
 
+class GenericTileRectangleIEditor : public VBoxContainer {
+GDCLASS(GenericTileRectangleIEditor, VBoxContainer);
+
+private:
+	Ref<TileSet> tile_set;
+	LocalVector<Vector<Point2i>> rectangles;
+	bool multiple_rectangle_mode = false;
+
+	bool use_undo_redo = true;
+
+	// UI
+	int hovered_polygon_index = -1;
+	int hovered_point_index = -1;
+
+	enum DragType {
+		DRAG_TYPE_NONE,
+		DRAG_TYPE_DRAG_POINT,
+		DRAG_TYPE_PAN,
+	};
+	DragType drag_type = DRAG_TYPE_NONE;
+	int drag_rectangle_index = 0;
+	int drag_point_index = 0;
+	Vector2i drag_last_pos;
+	PackedVector2iArray drag_old_rectangle;
+
+	HBoxContainer *toolbar = nullptr;
+	Ref<ButtonGroup> tools_button_group;
+	Button *button_expand = nullptr;
+	Button *button_create = nullptr;
+	Button *button_edit = nullptr;
+	Button *button_delete = nullptr;
+	MenuButton *button_advanced_menu = nullptr;
+
+	enum Snap {
+		SNAP_NONE,
+		SNAP_GRID,
+	};
+	int current_snap_option = SNAP_NONE;
+	MenuButton *button_pixel_snap = nullptr;
+	SpinBox *snap_subdivision = nullptr;
+
+	Panel *panel = nullptr;
+	Control *base_control = nullptr;
+	EditorZoomWidget *editor_zoom_widget = nullptr;
+	Button *button_center_view = nullptr;
+	Vector2i panning;
+	bool initializing = true;
+
+	Ref<Texture2D> background_texture;
+	Rect2 background_region;
+	Vector2i background_offset;
+	bool background_h_flip = false;
+	bool background_v_flip = false;
+	bool background_transpose = false;
+	Color background_modulate;
+
+	Color rectangle_color = Color(1.0, 0.0, 0.0);
+
+	enum AdvancedMenuOption {
+		RESET_TO_DEFAULT_TILE,
+		CLEAR_TILE,
+		ROTATE_RIGHT,
+		ROTATE_LEFT,
+		FLIP_HORIZONTALLY,
+		FLIP_VERTICALLY,
+	};
+
+	void _base_control_draw();
+	void _zoom_changed();
+	void _advanced_menu_item_pressed(int p_item_pressed);
+	void _center_view();
+	void _base_control_gui_input(Ref<InputEvent> p_event);
+	void _set_snap_option(int p_index);
+	void _store_snap_options();
+	void _toggle_expand(bool p_expand);
+
+	void _snap_to_tile_shape(Point2i &r_point, float &r_current_snapped_dist, float p_snap_dist);
+	void _snap_point(Point2i &r_point);
+	void _grab_rectangle_point(Vector2i p_pos, const Transform2D &p_rectangle_xform, int &r_rectangle_index, int &r_point_index);
+
+protected:
+	void _notification(int p_what);
+	static void _bind_methods();
+
+public:
+	void set_use_undo_redo(bool p_use_undo_redo);
+
+	void set_tile_set(Ref<TileSet> p_tile_set);
+	void set_background(Ref<Texture2D> p_texture, Rect2 p_region = Rect2(), Vector2i p_offset = Vector2i(), bool p_flip_h = false, bool p_flip_v = false, bool p_transpose = false, Color p_modulate = Color(1.0, 1.0, 1.0, 0.0));
+
+	int get_rectangle_count();
+	int add_rectangle(const Vector<Vector2i> &p_rectangle, int p_index = -1);
+	void remove_rectangle(int p_index);
+	void clear_rectangles();
+	void set_rectangle(int p_rectangle_index, const Vector<Vector2i> &p_rectangle);
+	Vector<Vector2i> get_rectangle(int p_rectangle_index);
+
+	void set_rectangles_color(Color p_color);
+	void set_multiple_rectangle_mode(bool p_multiple_polygon_mode);
+
+	GenericTileRectangleIEditor();
+};
+
 class TileDataDefaultEditor : public TileDataEditor {
 	GDCLASS(TileDataDefaultEditor, TileDataEditor);
 
@@ -422,13 +525,13 @@ class TileDataCollisionEditor : public TileDataDefaultEditor {
 	int physics_layer = -1;
 
 	// UI
-	GenericTilePolygonIEditor *polygon_i_editor = nullptr;
+	GenericTileRectangleIEditor *rectangle_editor = nullptr;
 	DummyObject *dummy_object = memnew(DummyObject);
 	HashMap<StringName, EditorProperty *> property_editors;
 
 	void _property_value_changed(const StringName &p_property, const Variant &p_value, const StringName &p_field);
 	void _property_selected(const StringName &p_path, int p_focusable);
-	void _polygons_i_changed();
+	void _rectangles_changed();
 
 	virtual Variant _get_painted_value() override;
 	virtual void _set_painted_value(TileSetAtlasSource *p_tile_set_atlas_source, Vector2 p_coords, int p_alternative_tile) override;

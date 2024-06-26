@@ -1803,6 +1803,761 @@ GenericTilePolygonIEditor::GenericTilePolygonIEditor() {
 	initializing = false;
 }
 
+void GenericTileRectangleIEditor::_base_control_draw() {
+	ERR_FAIL_COND(!tile_set.is_valid());
+
+	real_t grab_threshold = EDITOR_GET("editors/polygon_editor/point_grab_radius");
+
+	Color grid_color = EDITOR_GET("editors/tiles_editor/grid_color");
+	const Ref<Texture2D> handle = get_editor_theme_icon(SNAME("EditorPathSharpHandle"));
+	const Ref<StyleBox> focus_stylebox = get_theme_stylebox(SNAME("Focus"), EditorStringName(EditorStyles));
+
+	// Draw the focus rectangle.
+	if (base_control->has_focus()) {
+		base_control->draw_style_box(focus_stylebox, Rect2(Vector2(), base_control->get_size()));
+	}
+
+	// Draw tile-related things.
+	const Size2 base_tile_size = tile_set->get_tile_size();
+	const Size2 tile_size = background_region.size;
+
+	Transform2D xform;
+	xform.set_origin(base_control->get_size() / 2 + panning);
+	xform.set_scale(Vector2(editor_zoom_widget->get_zoom(), editor_zoom_widget->get_zoom()));
+	base_control->draw_set_transform_matrix(xform);
+
+	// Draw the tile shape filled.
+	Transform2D tile_xform;
+	tile_xform.set_scale(tile_size);
+	tile_set->draw_tile_shape(base_control, tile_xform, Color(1.0, 1.0, 1.0, 0.3), true);
+
+	// Draw the background.
+	if (background_texture.is_valid()) {
+		Size2 region_size = background_region.size;
+		if (background_h_flip) {
+			region_size.x = -region_size.x;
+		}
+		if (background_v_flip) {
+			region_size.y = -region_size.y;
+		}
+		base_control->draw_texture_rect_region(background_texture, Rect2(-background_region.size / 2 - background_offset, region_size), background_region, background_modulate, background_transpose);
+	}
+
+	// Draw grid.
+	if (current_snap_option == SNAP_GRID) {
+		Vector2 spacing = base_tile_size / snap_subdivision->get_value();
+		Vector2 offset = -tile_size / 2;
+		int w = snap_subdivision->get_value() * (tile_size / base_tile_size).x;
+		int h = snap_subdivision->get_value() * (tile_size / base_tile_size).y;
+
+		for (int y = 1; y < h; y++) {
+			for (int x = 1; x < w; x++) {
+				base_control->draw_line(Vector2(spacing.x * x, 0) + offset, Vector2(spacing.x * x, tile_size.y) + offset, Color(1, 1, 1, 0.33));
+				base_control->draw_line(Vector2(0, spacing.y * y) + offset, Vector2(tile_size.x, spacing.y * y) + offset, Color(1, 1, 1, 0.33));
+			}
+		}
+	}
+
+	// Draw the rectangles.
+	for (const Vector<Vector2i> &rectangle : rectangles) {
+		Vector<Vector2i> polygon = rectangle_to_polygon(rectangle[0], rectangle[1]);
+		Color color = rectangle_color;
+		color.a = 0.5;
+		Vector<Color> v_color;
+		v_color.push_back(color);
+		base_control->draw_polygon_i(polygon, v_color);
+
+		color.a = 0.7;
+		for (int j = 0; j < polygon.size(); j++) {
+			base_control->draw_line(polygon[j], polygon[(j + 1) % polygon.size()], color);
+		}
+	}
+
+	// Draw the handles.
+	int tinted_rectangle_index = -1;
+	int tinted_point_index = -1;
+	if (drag_type == DRAG_TYPE_DRAG_POINT) {
+		tinted_rectangle_index = drag_rectangle_index;
+		tinted_point_index = drag_point_index;
+	} else if (hovered_point_index >= 0) {
+		tinted_rectangle_index = hovered_polygon_index;
+		tinted_point_index = hovered_point_index;
+	}
+
+	base_control->draw_set_transform_matrix(Transform2D());
+	for (int i = 0; i < (int)rectangles.size(); i++) {
+		const Vector<Vector2i> &rect = rectangles[i];
+		Vector<Vector2i> polygon = rectangle_to_polygon(rect[0], rect[1]);
+		for (int j = 0; j < polygon.size(); j++) {
+			const Color poly_modulate = (tinted_rectangle_index == i && tinted_point_index == j) ? Color(0.5, 1, 2) : Color(1, 1, 1);
+			base_control->draw_texture(handle, xform.xform(polygon[j]) - handle->get_size() / 2, poly_modulate);
+		}
+	}
+
+	// Draw the text on top of the selected point.
+	if (tinted_rectangle_index >= 0) {
+		Ref<Font> font = get_theme_font(SNAME("font"), SNAME("Label"));
+		int font_size = get_theme_font_size(SNAME("font_size"), SNAME("Label"));
+		String text = multiple_rectangle_mode ? vformat("%d:%d", tinted_rectangle_index, tinted_point_index) : vformat("%d", tinted_point_index);
+		Size2 text_size = font->get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size);
+		const Vector<Vector2i> &rect = rectangles[tinted_rectangle_index];
+		Vector<Vector2i> polygon = rectangle_to_polygon(rect[0], rect[1]);
+		base_control->draw_string(font, xform.xform(polygon[tinted_point_index]) - text_size * 0.5, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(1.0, 1.0, 1.0, 0.5));
+	}
+
+	// Draw the tile shape line.
+	base_control->draw_set_transform_matrix(xform);
+	tile_set->draw_tile_shape(base_control, tile_xform, grid_color, false);
+	base_control->draw_set_transform_matrix(Transform2D());
+}
+
+void GenericTileRectangleIEditor::_center_view() {
+	panning = Vector2();
+	base_control->queue_redraw();
+	button_center_view->set_disabled(true);
+}
+
+void GenericTileRectangleIEditor::_zoom_changed() {
+	base_control->queue_redraw();
+}
+
+void GenericTileRectangleIEditor::_advanced_menu_item_pressed(int p_item_pressed) {
+	EditorUndoRedoManager *undo_redo;
+	if (use_undo_redo) {
+		undo_redo = EditorUndoRedoManager::get_singleton();
+	} else {
+		// This nice hack allows for discarding undo actions without making code too complex.
+		undo_redo = memnew(EditorUndoRedoManager);
+	}
+
+	switch (p_item_pressed) {
+		case RESET_TO_DEFAULT_TILE: {
+			undo_redo->create_action(TTR("Reset Rectangles"));
+			undo_redo->add_do_method(this, "clear_rectangles");
+			Vector2i size = tile_set->get_tile_size();
+			Vector<Vector2i> rectangle;
+			rectangle.push_back(size);
+			rectangle.push_back(Vector2i());
+			undo_redo->add_do_method(this, "add_rectangle", rectangle);
+			undo_redo->add_do_method(base_control, "queue_redraw");
+			undo_redo->add_do_method(this, "emit_signal", "rectangles_changed");
+			undo_redo->add_undo_method(this, "clear_rectangles");
+			for (const Vector<Vector2i> &rect : rectangles) {
+				undo_redo->add_undo_method(this, "add_rectangle", rect);
+			}
+			undo_redo->add_undo_method(base_control, "queue_redraw");
+			undo_redo->add_undo_method(this, "emit_signal", "rectangles_changed");
+			undo_redo->commit_action(true);
+		} break;
+		case CLEAR_TILE: {
+			undo_redo->create_action(TTR("Clear Rectangle"));
+			undo_redo->add_do_method(this, "clear_rectangles");
+			undo_redo->add_do_method(base_control, "queue_redraw");
+			undo_redo->add_do_method(this, "emit_signal", "rectangles_changed");
+			undo_redo->add_undo_method(this, "clear_rectangles");
+			for (const Vector<Vector2i> &rect : rectangles) {
+				undo_redo->add_undo_method(this, "add_rectangle", rect);
+			}
+			undo_redo->add_undo_method(base_control, "queue_redraw");
+			undo_redo->add_undo_method(this, "emit_signal", "rectangles_changed");
+			undo_redo->commit_action(true);
+		} break;
+		case ROTATE_RIGHT:
+		case ROTATE_LEFT:
+		case FLIP_HORIZONTALLY:
+		case FLIP_VERTICALLY: {
+			switch (p_item_pressed) {
+				case ROTATE_RIGHT: {
+					undo_redo->create_action(TTR("Rotate Rectangle Right"));
+				} break;
+				case ROTATE_LEFT: {
+					undo_redo->create_action(TTR("Rotate Rectangle Left"));
+				} break;
+				case FLIP_HORIZONTALLY: {
+					undo_redo->create_action(TTR("Flip Rectangle Horizontally"));
+				} break;
+				case FLIP_VERTICALLY: {
+					undo_redo->create_action(TTR("Flip Rectangle Vertically"));
+				} break;
+				default:
+					break;
+			}
+			for (unsigned int i = 0; i < rectangles.size(); i++) {
+				Vector<Point2i> new_rectangle;
+				Vector2i scale = rectangles[i][0];
+				Vector2i offset = rectangles[i][1];
+				switch (p_item_pressed) {
+					case ROTATE_RIGHT: {
+						scale = Vector2(scale.y, scale.x);
+						offset = Vector2(-offset.y, offset.x);
+					} break;
+					case ROTATE_LEFT: {
+						scale = Vector2(scale.y, scale.x);
+						offset = Vector2(offset.y, -offset.x);
+					} break;
+					case FLIP_HORIZONTALLY: {
+						offset = Vector2(-offset.x, offset.y);
+					} break;
+					case FLIP_VERTICALLY: {
+						offset = Vector2(offset.x, -offset.y);
+					} break;
+					default:
+						break;
+				}
+				new_rectangle.push_back(scale);
+				new_rectangle.push_back(offset);
+				undo_redo->add_do_method(this, "set_rectangle", i, new_rectangle);
+			}
+			undo_redo->add_do_method(base_control, "queue_redraw");
+			undo_redo->add_do_method(this, "emit_signal", "rectangles_changed");
+			for (unsigned int i = 0; i < rectangles.size(); i++) {
+				undo_redo->add_undo_method(this, "set_rectangle", i, rectangles[i]);
+			}
+			undo_redo->add_undo_method(base_control, "queue_redraw");
+			undo_redo->add_undo_method(this, "emit_signal", "rectangles_changed");
+			undo_redo->commit_action(true);
+		} break;
+		default:
+			break;
+	}
+
+	if (!use_undo_redo) {
+		memdelete(undo_redo);
+	}
+}
+
+void GenericTileRectangleIEditor::_grab_rectangle_point(Vector2i p_pos, const Transform2D &p_rectangle_xform, int &r_rectangle_index, int &r_point_index) {
+	const real_t grab_threshold = EDITOR_GET("editors/polygon_editor/point_grab_radius");
+	r_rectangle_index = -1;
+	r_point_index = -1;
+	float closest_distance = grab_threshold + 1.0;
+	for (unsigned int i = 0; i < rectangles.size(); i++) {
+		const Vector<Vector2i> &rectangle = rectangles[i];
+		Vector<Vector2i> polygon = rectangle_to_polygon(rectangle[0], rectangle[1]);
+		for (int j = 0; j < polygon.size(); j++) {
+			float distance = p_pos.distance_to(p_rectangle_xform.xform(polygon[j]));
+			if (distance < grab_threshold && distance < closest_distance) {
+				r_rectangle_index = i;
+				r_point_index = j;
+				closest_distance = distance;
+			}
+		}
+	}
+}
+
+void GenericTileRectangleIEditor::_snap_to_tile_shape(Point2i &r_point, float &r_current_snapped_dist, float p_snap_dist) {
+	ERR_FAIL_COND(!tile_set.is_valid());
+
+	Vector<Point2> polygon = tile_set->get_tile_shape_polygon();
+	for (int i = 0; i < polygon.size(); i++) {
+		polygon.write[i] = polygon[i] * tile_set->get_tile_size();
+	}
+	Point2i snapped_point = r_point;
+
+	// Snap to polygon vertices.
+	bool snapped = false;
+	for (int i = 0; i < polygon.size(); i++) {
+		float distance = r_point.distance_to(polygon[i]);
+		if (distance < p_snap_dist && distance < r_current_snapped_dist) {
+			snapped_point = polygon[i];
+			r_current_snapped_dist = distance;
+			snapped = true;
+		}
+	}
+
+	// Snap to edges if we did not snap to vertices.
+	if (!snapped) {
+		for (int i = 0; i < polygon.size(); i++) {
+			Point2 segment[2] = { polygon[i], polygon[(i + 1) % polygon.size()] };
+			Point2 point = Geometry2D::get_closest_point_to_segment(r_point, segment);
+			float distance = r_point.distance_to(point);
+			if (distance < p_snap_dist && distance < r_current_snapped_dist) {
+				snapped_point = point;
+				r_current_snapped_dist = distance;
+			}
+		}
+	}
+
+	r_point = snapped_point;
+}
+
+void GenericTileRectangleIEditor::_snap_point(Point2i &r_point) {
+	switch (current_snap_option) {
+		case SNAP_NONE:
+			break;
+
+		case SNAP_GRID: {
+			const Vector2 tile_size = tile_set->get_tile_size();
+			r_point = (r_point + tile_size / 2).snapped(tile_size / snap_subdivision->get_value()) - tile_size / 2;
+		} break;
+	}
+}
+
+void GenericTileRectangleIEditor::_base_control_gui_input(Ref<InputEvent> p_event) {
+	EditorUndoRedoManager *undo_redo;
+	if (use_undo_redo) {
+		undo_redo = EditorUndoRedoManager::get_singleton();
+	} else {
+		// This nice hack allows for discarding undo actions without making code too complex.
+		undo_redo = memnew(EditorUndoRedoManager);
+	}
+
+	real_t grab_threshold = EDITOR_GET("editors/polygon_editor/point_grab_radius");
+
+	hovered_polygon_index = -1;
+	hovered_point_index = -1;
+
+	Transform2D xform;
+	xform.set_origin(base_control->get_size() / 2 + panning);
+	xform.set_scale(Vector2(editor_zoom_widget->get_zoom(), editor_zoom_widget->get_zoom()));
+
+	Ref<InputEventMouseMotion> mm = p_event;
+	if (mm.is_valid()) {
+		if (drag_type == DRAG_TYPE_DRAG_POINT) {
+			ERR_FAIL_INDEX(drag_rectangle_index, (int)rectangles.size());
+			ERR_FAIL_INDEX(drag_point_index, 4);
+			Point2i point = xform.affine_inverse().xform(mm->get_position());
+			float distance = grab_threshold * 2.0;
+			_snap_to_tile_shape(point, distance, grab_threshold / editor_zoom_widget->get_zoom());
+			_snap_point(point);
+			Vector<Vector2i> rectangle = rectangles[drag_rectangle_index];
+			Vector2i size = rectangle[0];
+			Vector2i offset = rectangle[1];
+			Vector<Vector2i> polygon = rectangle_to_polygon(size, offset);
+			int y_delta;
+			int new_height;
+			if (drag_point_index == 0 || drag_point_index == 1) {
+				y_delta = point.y - polygon[0].y;
+				new_height = size.y - y_delta;
+			}
+			if (drag_point_index == 2 || drag_point_index == 3) {
+				y_delta = point.y - polygon[2].y;
+				new_height = size.y + y_delta;
+			}
+			int x_delta;
+			int new_width;
+			if (drag_point_index == 3 || drag_point_index == 0) {
+				x_delta = point.x - polygon[3].x;
+				new_width = size.x - x_delta;
+			}
+			if (drag_point_index == 1 || drag_point_index == 2) {
+				x_delta = point.x - polygon[1].x;
+				new_width = size.x + x_delta;
+			}
+			if (y_delta != 0 && new_height > 0) {
+				if (new_height % 2 == 1 && size.y % 2 == 0) {
+					offset.y += ((y_delta - 1) / 2);
+				} else if (new_height % 2 == 0 && size.y % 2 == 1) {
+					offset.y += ((y_delta + 1) / 2);
+				} else {
+					offset.y += (y_delta / 2);
+				}
+				size.y = new_height;
+			}
+			if (x_delta != 0 && new_width > 0) {
+				if (new_width % 2 == 1 && size.x % 2 == 0) {
+					offset.x += ((x_delta - 1) / 2);
+				} else if (new_width % 2 == 0 && size.x % 2 == 1) {
+					offset.x += ((x_delta + 1) / 2);
+				} else {
+					offset.x += (x_delta / 2);
+				}
+				size.x = new_width;
+			}
+			rectangles[drag_rectangle_index].write[0] = size;
+			rectangles[drag_rectangle_index].write[1] = offset;
+		} else if (drag_type == DRAG_TYPE_PAN) {
+			panning += mm->get_position() - drag_last_pos;
+			drag_last_pos = mm->get_position();
+			button_center_view->set_disabled(panning.is_zero());
+		} else {
+			// Update hovered point.
+			_grab_rectangle_point(mm->get_position(), xform, hovered_polygon_index, hovered_point_index);
+		}
+	}
+
+	Ref<InputEventMouseButton> mb = p_event;
+	if (mb.is_valid()) {
+		if (mb->get_button_index() == MouseButton::WHEEL_UP && mb->is_command_or_control_pressed()) {
+			editor_zoom_widget->set_zoom_by_increments(1);
+			_zoom_changed();
+			accept_event();
+		} else if (mb->get_button_index() == MouseButton::WHEEL_DOWN && mb->is_command_or_control_pressed()) {
+			editor_zoom_widget->set_zoom_by_increments(-1);
+			_zoom_changed();
+			accept_event();
+		} else if (mb->get_button_index() == MouseButton::LEFT) {
+			if (mb->is_pressed()) {
+				if (tools_button_group->get_pressed_button() == button_create) {
+					if (!multiple_rectangle_mode) {
+						clear_rectangles();
+					}
+					Vector<Vector2i> new_rectangle;
+					new_rectangle.push_back(Vector2i(2, 2));
+					Point2i point = xform.affine_inverse().xform(mb->get_position());
+					_snap_point(point);
+					new_rectangle.push_back(point);
+					int added = add_rectangle(new_rectangle);
+
+					button_edit->set_pressed(true);
+					undo_redo->create_action(TTR("Edit Rectangle"));
+					if (!multiple_rectangle_mode) {
+						undo_redo->add_do_method(this, "clear_rectangles");
+					}
+					undo_redo->add_do_method(this, "add_rectangle", new_rectangle);
+					undo_redo->add_do_method(base_control, "queue_redraw");
+					undo_redo->add_undo_method(this, "remove_rectangle", added);
+					undo_redo->add_undo_method(base_control, "queue_redraw");
+					undo_redo->commit_action(false);
+					emit_signal(SNAME("rectangles_changed"));
+				} else if (tools_button_group->get_pressed_button() == button_edit) {
+					// Edit points.
+					int closest_rectangle;
+					int closest_point;
+					_grab_rectangle_point(mb->get_position(), xform, closest_rectangle, closest_point);
+					if (closest_rectangle >= 0) {
+						drag_type = DRAG_TYPE_DRAG_POINT;
+						drag_rectangle_index = closest_rectangle;
+						drag_point_index = closest_point;
+						drag_old_rectangle = rectangles[drag_rectangle_index];
+					}
+				}
+			} else if (tools_button_group->get_pressed_button() == button_delete) {
+				// Remove rectangle.
+				int closest_rectangle;
+				int closest_point;
+				_grab_rectangle_point(mb->get_position(), xform, closest_rectangle, closest_point);
+				if (closest_rectangle >= 0) {
+					PackedVector2iArray old_rectangle = rectangles[closest_rectangle];
+					undo_redo->create_action(TTR("Edit Polygons"));
+					remove_rectangle(closest_rectangle);
+					undo_redo->add_do_method(this, "remove_rectangle", closest_rectangle);
+					undo_redo->add_undo_method(this, "add_rectangle", old_rectangle, closest_rectangle);
+					undo_redo->add_do_method(base_control, "queue_redraw");
+					undo_redo->add_undo_method(base_control, "queue_redraw");
+					undo_redo->commit_action(false);
+					emit_signal(SNAME("rectangles_changed"));
+				}
+			} else {
+				if (drag_type == DRAG_TYPE_DRAG_POINT) {
+					undo_redo->create_action(TTR("Edit Rectangle"));
+					undo_redo->add_do_method(this, "set_rectangle", drag_rectangle_index, rectangles[drag_rectangle_index]);
+					undo_redo->add_do_method(base_control, "queue_redraw");
+					undo_redo->add_undo_method(this, "set_rectangle", drag_rectangle_index, drag_old_rectangle);
+					undo_redo->add_undo_method(base_control, "queue_redraw");
+					undo_redo->commit_action(false);
+					emit_signal(SNAME("rectangles_changed"));
+				}
+				drag_type = DRAG_TYPE_NONE;
+				drag_point_index = -1;
+			}
+
+		} else if (mb->get_button_index() == MouseButton::RIGHT || mb->get_button_index() == MouseButton::MIDDLE) {
+			if (mb->is_pressed()) {
+				drag_type = DRAG_TYPE_PAN;
+				drag_last_pos = mb->get_position();
+			} else {
+				drag_type = DRAG_TYPE_NONE;
+			}
+		}
+	}
+
+	base_control->queue_redraw();
+
+	if (!use_undo_redo) {
+		memdelete(undo_redo);
+	}
+}
+
+void GenericTileRectangleIEditor::_set_snap_option(int p_index) {
+	current_snap_option = p_index;
+	button_pixel_snap->set_icon(button_pixel_snap->get_popup()->get_item_icon(p_index));
+	snap_subdivision->set_visible(p_index == SNAP_GRID);
+
+	if (initializing) {
+		return;
+	}
+
+	base_control->queue_redraw();
+	_store_snap_options();
+}
+
+void GenericTileRectangleIEditor::_store_snap_options() {
+	EditorSettings::get_singleton()->set_project_metadata("editor_metadata", "tile_snap_option", current_snap_option);
+	EditorSettings::get_singleton()->set_project_metadata("editor_metadata", "tile_snap_subdiv", snap_subdivision->get_value());
+}
+
+void GenericTileRectangleIEditor::_toggle_expand(bool p_expand) {
+	if (p_expand) {
+		TileSetEditor::get_singleton()->add_expanded_editor(this);
+	} else {
+		TileSetEditor::get_singleton()->remove_expanded_editor();
+	}
+}
+
+void GenericTileRectangleIEditor::set_use_undo_redo(bool p_use_undo_redo) {
+	use_undo_redo = p_use_undo_redo;
+}
+
+void GenericTileRectangleIEditor::set_tile_set(Ref<TileSet> p_tile_set) {
+	ERR_FAIL_COND(!p_tile_set.is_valid());
+	if (tile_set == p_tile_set) {
+		return;
+	}
+
+	// Set the default tile shape
+	clear_rectangles();
+	if (p_tile_set.is_valid()) {
+		Vector2i size = p_tile_set->get_tile_size();
+		Vector<Vector2i> rect;
+		rect.push_back(size);
+		rect.push_back(Vector2i());
+		add_rectangle(rect);
+	}
+
+	tile_set = p_tile_set;
+
+	// Set the default zoom value.
+	int default_control_y_size = 200 * EDSCALE;
+	Vector2 zoomed_tile = editor_zoom_widget->get_zoom() * tile_set->get_tile_size();
+	while (zoomed_tile.y < default_control_y_size) {
+		editor_zoom_widget->set_zoom_by_increments(6, false);
+		float current_zoom = editor_zoom_widget->get_zoom();
+		zoomed_tile = current_zoom * tile_set->get_tile_size();
+		if (Math::is_equal_approx(current_zoom, editor_zoom_widget->get_max_zoom())) {
+			break;
+		}
+	}
+	while (zoomed_tile.y > default_control_y_size) {
+		editor_zoom_widget->set_zoom_by_increments(-6, false);
+		float current_zoom = editor_zoom_widget->get_zoom();
+		zoomed_tile = current_zoom * tile_set->get_tile_size();
+		if (Math::is_equal_approx(current_zoom, editor_zoom_widget->get_min_zoom())) {
+			break;
+		}
+	}
+	editor_zoom_widget->set_zoom_by_increments(-6, false);
+	_zoom_changed();
+}
+
+void GenericTileRectangleIEditor::set_background(Ref<Texture2D> p_texture, Rect2 p_region, Vector2i p_offset, bool p_flip_h, bool p_flip_v, bool p_transpose, Color p_modulate) {
+	background_texture = p_texture;
+	background_region = p_region;
+	background_offset = p_offset;
+	background_h_flip = p_flip_h;
+	background_v_flip = p_flip_v;
+	background_transpose = p_transpose;
+	background_modulate = p_modulate;
+	base_control->queue_redraw();
+}
+
+int GenericTileRectangleIEditor::get_rectangle_count() {
+	return rectangles.size();
+}
+
+int GenericTileRectangleIEditor::add_rectangle(const Vector<Vector2i> &p_rectangle, int p_index) {
+	ERR_FAIL_COND_V(!multiple_rectangle_mode && rectangles.size() >= 1, -1);
+
+	if (p_index < 0) {
+		rectangles.push_back(p_rectangle);
+		base_control->queue_redraw();
+		button_edit->set_pressed(true);
+		return rectangles.size() - 1;
+	} else {
+		rectangles.insert(p_index, p_rectangle);
+		button_edit->set_pressed(true);
+		base_control->queue_redraw();
+		return p_index;
+	}
+}
+
+void GenericTileRectangleIEditor::remove_rectangle(int p_index) {
+	ERR_FAIL_INDEX(p_index, (int)rectangles.size());
+	rectangles.remove_at(p_index);
+
+	if (rectangles.size() == 0) {
+		button_create->set_pressed(true);
+	}
+	base_control->queue_redraw();
+}
+
+void GenericTileRectangleIEditor::clear_rectangles() {
+	rectangles.clear();
+	base_control->queue_redraw();
+}
+
+void GenericTileRectangleIEditor::set_rectangle(int p_rectangle_index, const Vector<Vector2i> &p_rectangle) {
+	ERR_FAIL_INDEX(p_rectangle_index, (int)rectangles.size());
+	rectangles[p_rectangle_index] = p_rectangle;
+	button_edit->set_pressed(true);
+	base_control->queue_redraw();
+}
+
+Vector<Vector2i> GenericTileRectangleIEditor::get_rectangle(int p_rectangle_index) {
+	ERR_FAIL_INDEX_V(p_rectangle_index, (int)rectangles.size(), Vector<Point2i>());
+	return rectangles[p_rectangle_index];
+}
+
+void GenericTileRectangleIEditor::set_rectangles_color(Color p_color) {
+	rectangle_color = p_color;
+	base_control->queue_redraw();
+}
+
+void GenericTileRectangleIEditor::set_multiple_rectangle_mode(bool p_multiple_rectangle_mode) {
+	multiple_rectangle_mode = p_multiple_rectangle_mode;
+}
+
+void GenericTileRectangleIEditor::_notification(int p_what) {
+	switch (p_what) {
+		case NOTIFICATION_ENTER_TREE: {
+			if (!get_meta("reparented", false)) {
+				button_expand->set_pressed_no_signal(false);
+			}
+		} break;
+		case NOTIFICATION_THEME_CHANGED: {
+			button_expand->set_icon(get_editor_theme_icon(SNAME("DistractionFree")));
+			button_create->set_icon(get_editor_theme_icon(SNAME("CurveCreate")));
+			button_edit->set_icon(get_editor_theme_icon(SNAME("CurveEdit")));
+			button_delete->set_icon(get_editor_theme_icon(SNAME("CurveDelete")));
+			button_center_view->set_icon(get_editor_theme_icon(SNAME("CenterView")));
+			button_advanced_menu->set_icon(get_editor_theme_icon(SNAME("GuiTabMenuHl")));
+			button_pixel_snap->get_popup()->set_item_icon(0, get_editor_theme_icon(SNAME("SnapDisable")));
+			button_pixel_snap->get_popup()->set_item_icon(1, get_editor_theme_icon(SNAME("SnapGrid")));
+			button_pixel_snap->set_icon(button_pixel_snap->get_popup()->get_item_icon(current_snap_option));
+
+			PopupMenu *p = button_advanced_menu->get_popup();
+			p->set_item_icon(p->get_item_index(ROTATE_RIGHT), get_editor_theme_icon(SNAME("RotateRight")));
+			p->set_item_icon(p->get_item_index(ROTATE_LEFT), get_editor_theme_icon(SNAME("RotateLeft")));
+			p->set_item_icon(p->get_item_index(FLIP_HORIZONTALLY), get_editor_theme_icon(SNAME("MirrorX")));
+			p->set_item_icon(p->get_item_index(FLIP_VERTICALLY), get_editor_theme_icon(SNAME("MirrorY")));
+		} break;
+	}
+}
+
+void GenericTileRectangleIEditor::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_rectangle_count"), &GenericTileRectangleIEditor::get_rectangle_count);
+	ClassDB::bind_method(D_METHOD("add_rectangle", "rectangle", "index"), &GenericTileRectangleIEditor::add_rectangle, DEFVAL(-1));
+	ClassDB::bind_method(D_METHOD("remove_rectangle", "index"), &GenericTileRectangleIEditor::remove_rectangle);
+	ClassDB::bind_method(D_METHOD("clear_rectangles"), &GenericTileRectangleIEditor::clear_rectangles);
+	ClassDB::bind_method(D_METHOD("set_rectangle", "index", "rectangle"), &GenericTileRectangleIEditor::set_rectangle);
+	ClassDB::bind_method(D_METHOD("get_rectangle", "index"), &GenericTileRectangleIEditor::get_rectangle);
+
+	ADD_SIGNAL(MethodInfo("rectangles_changed"));
+}
+
+GenericTileRectangleIEditor::GenericTileRectangleIEditor() {
+	toolbar = memnew(HBoxContainer);
+	add_child(toolbar);
+
+	tools_button_group.instantiate();
+
+	button_expand = memnew(Button);
+	button_expand->set_theme_type_variation("FlatButton");
+	button_expand->set_toggle_mode(true);
+	button_expand->set_pressed(false);
+	button_expand->set_tooltip_text(TTR("Expand editor"));
+	button_expand->connect("toggled", callable_mp(this, &GenericTileRectangleIEditor::_toggle_expand));
+	toolbar->add_child(button_expand);
+
+	toolbar->add_child(memnew(VSeparator));
+
+	button_create = memnew(Button);
+	button_create->set_theme_type_variation("FlatButton");
+	button_create->set_toggle_mode(true);
+	button_create->set_button_group(tools_button_group);
+	button_create->set_pressed(true);
+	button_create->set_tooltip_text(TTR("Add rectangle tool"));
+	toolbar->add_child(button_create);
+
+	button_edit = memnew(Button);
+	button_edit->set_theme_type_variation("FlatButton");
+	button_edit->set_toggle_mode(true);
+	button_edit->set_button_group(tools_button_group);
+	button_edit->set_tooltip_text(TTR("Edit points tool"));
+	toolbar->add_child(button_edit);
+
+	button_delete = memnew(Button);
+	button_delete->set_theme_type_variation("FlatButton");
+	button_delete->set_toggle_mode(true);
+	button_delete->set_button_group(tools_button_group);
+	button_delete->set_tooltip_text(TTR("Delete points tool"));
+	toolbar->add_child(button_delete);
+
+	button_advanced_menu = memnew(MenuButton);
+	button_advanced_menu->set_flat(false);
+	button_advanced_menu->set_theme_type_variation("FlatMenuButton");
+	button_advanced_menu->set_toggle_mode(true);
+	button_advanced_menu->get_popup()->add_item(TTR("Reset to default tile shape"), RESET_TO_DEFAULT_TILE, Key::F);
+	button_advanced_menu->get_popup()->add_item(TTR("Clear"), CLEAR_TILE, Key::C);
+	button_advanced_menu->get_popup()->add_separator();
+	button_advanced_menu->get_popup()->add_item(TTR("Rotate Right"), ROTATE_RIGHT, Key::R);
+	button_advanced_menu->get_popup()->add_item(TTR("Rotate Left"), ROTATE_LEFT, Key::E);
+	button_advanced_menu->get_popup()->add_item(TTR("Flip Horizontally"), FLIP_HORIZONTALLY, Key::H);
+	button_advanced_menu->get_popup()->add_item(TTR("Flip Vertically"), FLIP_VERTICALLY, Key::V);
+	button_advanced_menu->get_popup()->connect(SceneStringName(id_pressed), callable_mp(this, &GenericTileRectangleIEditor::_advanced_menu_item_pressed));
+	button_advanced_menu->set_focus_mode(FOCUS_ALL);
+	toolbar->add_child(button_advanced_menu);
+
+	toolbar->add_child(memnew(VSeparator));
+
+	button_pixel_snap = memnew(MenuButton);
+	toolbar->add_child(button_pixel_snap);
+	button_pixel_snap->set_flat(false);
+	button_pixel_snap->set_theme_type_variation("FlatMenuButton");
+	button_pixel_snap->set_tooltip_text(TTR("Toggle Grid Snap"));
+	button_pixel_snap->get_popup()->add_item(TTR("Disable Snap"), SNAP_NONE);
+	button_pixel_snap->get_popup()->add_item(TTR("Grid Snap"), SNAP_GRID);
+	button_pixel_snap->get_popup()->connect("index_pressed", callable_mp(this, &GenericTileRectangleIEditor::_set_snap_option));
+
+	snap_subdivision = memnew(SpinBox);
+	toolbar->add_child(snap_subdivision);
+	snap_subdivision->get_line_edit()->add_theme_constant_override("minimum_character_width", 2);
+	snap_subdivision->set_min(1);
+	snap_subdivision->set_max(99);
+
+	Control *root = memnew(Control);
+	root->set_v_size_flags(Control::SIZE_EXPAND_FILL);
+	root->set_custom_minimum_size(Size2(0, 200 * EDSCALE));
+	root->set_mouse_filter(Control::MOUSE_FILTER_IGNORE);
+	add_child(root);
+
+	panel = memnew(Panel);
+	panel->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
+	panel->set_mouse_filter(Control::MOUSE_FILTER_IGNORE);
+	root->add_child(panel);
+
+	base_control = memnew(Control);
+	base_control->set_texture_filter(CanvasItem::TEXTURE_FILTER_NEAREST);
+	base_control->set_anchors_and_offsets_preset(Control::PRESET_FULL_RECT);
+	base_control->connect(SceneStringName(draw), callable_mp(this, &GenericTileRectangleIEditor::_base_control_draw));
+	base_control->connect(SceneStringName(gui_input), callable_mp(this, &GenericTileRectangleIEditor::_base_control_gui_input));
+	base_control->set_clip_contents(true);
+	base_control->set_focus_mode(Control::FOCUS_CLICK);
+	root->add_child(base_control);
+	snap_subdivision->connect("value_changed", callable_mp((CanvasItem *)base_control, &CanvasItem::queue_redraw).unbind(1));
+	snap_subdivision->connect("value_changed", callable_mp(this, &GenericTileRectangleIEditor::_store_snap_options).unbind(1));
+
+	editor_zoom_widget = memnew(EditorZoomWidget);
+	editor_zoom_widget->setup_zoom_limits(0.125, 128.0);
+	editor_zoom_widget->set_position(Vector2(5, 5));
+	editor_zoom_widget->connect("zoom_changed", callable_mp(this, &GenericTileRectangleIEditor::_zoom_changed).unbind(1));
+	editor_zoom_widget->set_shortcut_context(this);
+	root->add_child(editor_zoom_widget);
+
+	button_center_view = memnew(Button);
+	button_center_view->set_anchors_and_offsets_preset(Control::PRESET_TOP_RIGHT, Control::PRESET_MODE_MINSIZE, 5);
+	button_center_view->set_grow_direction_preset(Control::PRESET_TOP_RIGHT);
+	button_center_view->connect(SceneStringName(pressed), callable_mp(this, &GenericTileRectangleIEditor::_center_view));
+	button_center_view->set_theme_type_variation("FlatButton");
+	button_center_view->set_tooltip_text(TTR("Center View"));
+	button_center_view->set_disabled(true);
+	root->add_child(button_center_view);
+
+	snap_subdivision->set_value_no_signal(EditorSettings::get_singleton()->get_project_metadata("editor_metadata", "tile_snap_subdiv", 4));
+	_set_snap_option(EditorSettings::get_singleton()->get_project_metadata("editor_metadata", "tile_snap_option", SNAP_NONE));
+	initializing = false;
+}
+
 void TileDataDefaultEditor::_property_value_changed(const StringName &p_property, const Variant &p_value, const StringName &p_field) {
 	ERR_FAIL_NULL(dummy_object);
 	dummy_object->set(p_property, p_value);
@@ -2349,20 +3104,14 @@ void TileDataCollisionEditor::_property_selected(const StringName &p_path, int p
 	}
 }
 
-void TileDataCollisionEditor::_polygons_i_changed() {
+void TileDataCollisionEditor::_rectangles_changed() {
 	// Update the dummy object properties and their editors.
-	for (int i = 0; i < polygon_i_editor->get_polygon_count(); i++) {
-		StringName one_way_property = vformat("polygon_%d_one_way", i);
-		StringName one_way_margin_property = vformat("polygon_%d_one_way_margin", i);
+	for (int i = 0; i < rectangle_editor->get_rectangle_count(); i++) {
+		StringName one_way_property = vformat("rectangle_%d_one_way", i);
 
 		if (!dummy_object->has_dummy_property(one_way_property)) {
 			dummy_object->add_dummy_property(one_way_property);
 			dummy_object->set(one_way_property, false);
-		}
-
-		if (!dummy_object->has_dummy_property(one_way_margin_property)) {
-			dummy_object->add_dummy_property(one_way_margin_property);
-			dummy_object->set(one_way_margin_property, 1.0);
 		}
 
 		if (!property_editors.has(one_way_property)) {
@@ -2376,34 +3125,15 @@ void TileDataCollisionEditor::_polygons_i_changed() {
 			add_child(one_way_property_editor);
 			property_editors[one_way_property] = one_way_property_editor;
 		}
-
-		if (!property_editors.has(one_way_margin_property)) {
-			EditorProperty *one_way_margin_property_editor = EditorInspectorDefaultPlugin::get_editor_for_property(dummy_object, Variant::FLOAT, one_way_margin_property, PROPERTY_HINT_NONE, "", PROPERTY_USAGE_DEFAULT);
-			one_way_margin_property_editor->set_object_and_property(dummy_object, one_way_margin_property);
-			one_way_margin_property_editor->set_label(one_way_margin_property);
-			one_way_margin_property_editor->connect("property_changed", callable_mp(this, &TileDataCollisionEditor::_property_value_changed).unbind(1));
-			one_way_margin_property_editor->connect("selected", callable_mp(this, &TileDataCollisionEditor::_property_selected));
-			one_way_margin_property_editor->set_tooltip_text(one_way_margin_property_editor->get_edited_property());
-			one_way_margin_property_editor->update_property();
-			add_child(one_way_margin_property_editor);
-			property_editors[one_way_margin_property] = one_way_margin_property_editor;
-		}
 	}
 
 	// Remove unneeded properties and their editors.
-	for (int i = polygon_i_editor->get_polygon_count(); dummy_object->has_dummy_property(vformat("polygon_%d_one_way", i)); i++) {
-		dummy_object->remove_dummy_property(vformat("polygon_%d_one_way", i));
+	for (int i = rectangle_editor->get_rectangle_count(); dummy_object->has_dummy_property(vformat("rectangle_%d_one_way", i)); i++) {
+		dummy_object->remove_dummy_property(vformat("rectangle_%d_one_way", i));
 	}
-	for (int i = polygon_i_editor->get_polygon_count(); dummy_object->has_dummy_property(vformat("polygon_%d_one_way_margin", i)); i++) {
-		dummy_object->remove_dummy_property(vformat("polygon_%d_one_way_margin", i));
-	}
-	for (int i = polygon_i_editor->get_polygon_count(); property_editors.has(vformat("polygon_%d_one_way", i)); i++) {
-		property_editors[vformat("polygon_%d_one_way", i)]->queue_free();
-		property_editors.erase(vformat("polygon_%d_one_way", i));
-	}
-	for (int i = polygon_i_editor->get_polygon_count(); property_editors.has(vformat("polygon_%d_one_way_margin", i)); i++) {
-		property_editors[vformat("polygon_%d_one_way_margin", i)]->queue_free();
-		property_editors.erase(vformat("polygon_%d_one_way_margin", i));
+	for (int i = rectangle_editor->get_rectangle_count(); property_editors.has(vformat("rectangle_%d_one_way", i)); i++) {
+		property_editors[vformat("rectangle_%d_one_way", i)]->queue_free();
+		property_editors.erase(vformat("rectangle_%d_one_way", i));
 	}
 }
 
@@ -2412,15 +3142,14 @@ Variant TileDataCollisionEditor::_get_painted_value() {
 	dict["linear_velocity"] = dummy_object->get("linear_velocity");
 	dict["angular_velocity"] = dummy_object->get("angular_velocity");
 	Array array;
-	for (int i = 0; i < polygon_i_editor->get_polygon_count(); i++) {
-		ERR_FAIL_COND_V(polygon_i_editor->get_polygon(i).size() < 3, Variant());
-		Dictionary polygon_dict;
-		polygon_dict["points"] = polygon_i_editor->get_polygon(i);
-		polygon_dict["one_way"] = dummy_object->get(vformat("polygon_%d_one_way", i));
-		polygon_dict["one_way_margin"] = dummy_object->get(vformat("polygon_%d_one_way_margin", i));
-		array.push_back(polygon_dict);
+	for (int i = 0; i < rectangle_editor->get_rectangle_count(); i++) {
+		ERR_FAIL_COND_V(rectangle_editor->get_rectangle(i).size() != 2, Variant());
+		Dictionary rectangle_dict;
+		rectangle_dict["data"] = rectangle_editor->get_rectangle(i);
+		rectangle_dict["one_way"] = dummy_object->get(vformat("rectangle_%d_one_way", i));
+		array.push_back(rectangle_dict);
 	}
-	dict["polygons"] = array;
+	dict["rectangles"] = array;
 
 	return dict;
 }
@@ -2429,25 +3158,25 @@ void TileDataCollisionEditor::_set_painted_value(TileSetAtlasSource *p_tile_set_
 	TileData *tile_data = p_tile_set_atlas_source->get_tile_data(p_coords, p_alternative_tile);
 	ERR_FAIL_NULL(tile_data);
 
-	polygon_i_editor->clear_polygons();
-	for (int i = 0; i < tile_data->get_collision_polygons_count(physics_layer); i++) {
-		Vector<Vector2i> polygon = tile_data->get_collision_polygon_points(physics_layer, i);
-		if (polygon.size() >= 3) {
-			polygon_i_editor->add_polygon(polygon);
+	rectangle_editor->clear_rectangles();
+	for (int i = 0; i < tile_data->get_collision_rectangles_count(physics_layer); i++) {
+		Vector<Vector2i> rectangle = tile_data->get_collision_rectangle_data(physics_layer, i);
+		if (rectangle.size() >= 3) {
+			rectangle_editor->add_rectangle(rectangle);
 		}
 	}
 
-	_polygons_i_changed();
+	_rectangles_changed();
 	dummy_object->set("linear_velocity", tile_data->get_constant_linear_velocity(physics_layer));
 	dummy_object->set("angular_velocity", tile_data->get_constant_angular_velocity(physics_layer));
-	for (int i = 0; i < tile_data->get_collision_polygons_count(physics_layer); i++) {
-		dummy_object->set(vformat("polygon_%d_one_way", i), tile_data->is_collision_polygon_one_way(physics_layer, i));
+	for (int i = 0; i < tile_data->get_collision_rectangles_count(physics_layer); i++) {
+		dummy_object->set(vformat("rectangle_%d_one_way", i), tile_data->is_collision_rectangle_one_way(physics_layer, i));
 	}
 	for (const KeyValue<StringName, EditorProperty *> &E : property_editors) {
 		E.value->update_property();
 	}
 
-	polygon_i_editor->set_background(p_tile_set_atlas_source->get_texture(), p_tile_set_atlas_source->get_tile_texture_region(p_coords), tile_data->get_texture_origin(), tile_data->get_flip_h(), tile_data->get_flip_v(), tile_data->get_transpose(), tile_data->get_modulate());
+	rectangle_editor->set_background(p_tile_set_atlas_source->get_texture(), p_tile_set_atlas_source->get_tile_texture_region(p_coords), tile_data->get_texture_origin(), tile_data->get_flip_h(), tile_data->get_flip_v(), tile_data->get_transpose(), tile_data->get_modulate());
 }
 
 void TileDataCollisionEditor::_set_value(TileSetAtlasSource *p_tile_set_atlas_source, Vector2 p_coords, int p_alternative_tile, const Variant &p_value) {
@@ -2457,15 +3186,15 @@ void TileDataCollisionEditor::_set_value(TileSetAtlasSource *p_tile_set_atlas_so
 	Dictionary dict = p_value;
 	tile_data->set_constant_linear_velocity(physics_layer, dict["linear_velocity"]);
 	tile_data->set_constant_angular_velocity(physics_layer, dict["angular_velocity"]);
-	Array array = dict["polygons"];
-	tile_data->set_collision_polygons_count(physics_layer, array.size());
+	Array array = dict["rectangles"];
+	tile_data->set_collision_rectangles_count(physics_layer, array.size());
 	for (int i = 0; i < array.size(); i++) {
-		Dictionary polygon_dict = array[i];
-		tile_data->set_collision_polygon_points(physics_layer, i, polygon_dict["points"]);
-		tile_data->set_collision_polygon_one_way(physics_layer, i, polygon_dict["one_way"]);
+		Dictionary rectangle_dict = array[i];
+		tile_data->set_collision_rectangle_data(physics_layer, i, rectangle_dict["data"]);
+		tile_data->set_collision_rectangle_one_way(physics_layer, i, rectangle_dict["one_way"]);
 	}
 
-	polygon_i_editor->set_background(p_tile_set_atlas_source->get_texture(), p_tile_set_atlas_source->get_tile_texture_region(p_coords), tile_data->get_texture_origin(), tile_data->get_flip_h(), tile_data->get_flip_v(), tile_data->get_transpose(), tile_data->get_modulate());
+	rectangle_editor->set_background(p_tile_set_atlas_source->get_texture(), p_tile_set_atlas_source->get_tile_texture_region(p_coords), tile_data->get_texture_origin(), tile_data->get_flip_h(), tile_data->get_flip_v(), tile_data->get_transpose(), tile_data->get_modulate());
 }
 
 Variant TileDataCollisionEditor::_get_value(TileSetAtlasSource *p_tile_set_atlas_source, Vector2 p_coords, int p_alternative_tile) {
@@ -2476,13 +3205,13 @@ Variant TileDataCollisionEditor::_get_value(TileSetAtlasSource *p_tile_set_atlas
 	dict["linear_velocity"] = tile_data->get_constant_linear_velocity(physics_layer);
 	dict["angular_velocity"] = tile_data->get_constant_angular_velocity(physics_layer);
 	Array array;
-	for (int i = 0; i < tile_data->get_collision_polygons_count(physics_layer); i++) {
-		Dictionary polygon_dict;
-		polygon_dict["points"] = tile_data->get_collision_polygon_points(physics_layer, i);
-		polygon_dict["one_way"] = tile_data->is_collision_polygon_one_way(physics_layer, i);
-		array.push_back(polygon_dict);
+	for (int i = 0; i < tile_data->get_collision_rectangles_count(physics_layer); i++) {
+		Dictionary rectangle_dict;
+		rectangle_dict["data"] = tile_data->get_collision_rectangle_data(physics_layer, i);
+		rectangle_dict["one_way"] = tile_data->is_collision_rectangle_one_way(physics_layer, i);
+		array.push_back(rectangle_dict);
 	}
-	dict["polygons"] = array;
+	dict["rectangles"] = array;
 	return dict;
 }
 
@@ -2495,46 +3224,46 @@ void TileDataCollisionEditor::_setup_undo_redo_action(TileSetAtlasSource *p_tile
 		Dictionary old_dict = E.value;
 		undo_redo->add_undo_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/linear_velocity", coords.x, coords.y, E.key.alternative_tile, physics_layer), old_dict["linear_velocity"]);
 		undo_redo->add_undo_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/angular_velocity", coords.x, coords.y, E.key.alternative_tile, physics_layer), old_dict["angular_velocity"]);
-		Array old_polygon_array = old_dict["polygons"];
-		undo_redo->add_undo_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/polygons_count", coords.x, coords.y, E.key.alternative_tile, physics_layer), old_polygon_array.size());
-		for (int i = 0; i < old_polygon_array.size(); i++) {
-			Dictionary polygon_dict = old_polygon_array[i];
-			undo_redo->add_undo_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/polygon_%d/points", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), polygon_dict["points"]);
-			undo_redo->add_undo_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/polygon_%d/one_way", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), polygon_dict["one_way"]);
-			undo_redo->add_undo_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/polygon_%d/one_way_margin", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), polygon_dict["one_way_margin"]);
+		Array old_rectangle_array = old_dict["rectangles"];
+		undo_redo->add_undo_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangles_count", coords.x, coords.y, E.key.alternative_tile, physics_layer), old_rectangle_array.size());
+		for (int i = 0; i < old_rectangle_array.size(); i++) {
+			Dictionary rectangle_dict = old_rectangle_array[i];
+			undo_redo->add_undo_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangle_%d/points", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), rectangle_dict["points"]);
+			undo_redo->add_undo_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangle_%d/one_way", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), rectangle_dict["one_way"]);
+			undo_redo->add_undo_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangle_%d/one_way_margin", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), rectangle_dict["one_way_margin"]);
 		}
 
 		undo_redo->add_do_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/linear_velocity", coords.x, coords.y, E.key.alternative_tile, physics_layer), new_dict["linear_velocity"]);
 		undo_redo->add_do_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/angular_velocity", coords.x, coords.y, E.key.alternative_tile, physics_layer), new_dict["angular_velocity"]);
-		Array new_polygon_array = new_dict["polygons"];
-		undo_redo->add_do_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/polygons_count", coords.x, coords.y, E.key.alternative_tile, physics_layer), new_polygon_array.size());
-		for (int i = 0; i < new_polygon_array.size(); i++) {
-			Dictionary polygon_dict = new_polygon_array[i];
-			undo_redo->add_do_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/polygon_%d/points", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), polygon_dict["points"]);
-			undo_redo->add_do_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/polygon_%d/one_way", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), polygon_dict["one_way"]);
-			undo_redo->add_do_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/polygon_%d/one_way_margin", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), polygon_dict["one_way_margin"]);
+		Array new_rectangle_array = new_dict["rectangles"];
+		undo_redo->add_do_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangles_count", coords.x, coords.y, E.key.alternative_tile, physics_layer), new_rectangle_array.size());
+		for (int i = 0; i < new_rectangle_array.size(); i++) {
+			Dictionary rectangle_dict = new_rectangle_array[i];
+			undo_redo->add_do_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangle_%d/points", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), rectangle_dict["points"]);
+			undo_redo->add_do_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangle_%d/one_way", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), rectangle_dict["one_way"]);
+			undo_redo->add_do_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangle_%d/one_way_margin", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), rectangle_dict["one_way_margin"]);
 		}
 	}
 }
 
 void TileDataCollisionEditor::_tile_set_changed() {
-	polygon_i_editor->set_tile_set(tile_set);
-	_polygons_i_changed();
+	rectangle_editor->set_tile_set(tile_set);
+	_rectangles_changed();
 }
 
 void TileDataCollisionEditor::_notification(int p_what) {
 	switch (p_what) {
 		case NOTIFICATION_ENTER_TREE: {
-			polygon_i_editor->set_polygons_color(get_tree()->get_debug_collisions_color());
+			rectangle_editor->set_rectangles_color(get_tree()->get_debug_collisions_color());
 		} break;
 	}
 }
 
 TileDataCollisionEditor::TileDataCollisionEditor() {
-	polygon_i_editor = memnew(GenericTilePolygonIEditor);
-	polygon_i_editor->set_multiple_polygon_mode(true);
-	polygon_i_editor->connect("polygons_changed", callable_mp(this, &TileDataCollisionEditor::_polygons_i_changed));
-	add_child(polygon_i_editor);
+	rectangle_editor = memnew(GenericTileRectangleIEditor);
+	rectangle_editor->set_multiple_rectangle_mode(true);
+	rectangle_editor->connect("rectangles_changed", callable_mp(this, &TileDataCollisionEditor::_rectangles_changed));
+	add_child(rectangle_editor);
 
 	dummy_object->add_dummy_property("linear_velocity");
 	dummy_object->set("linear_velocity", Vector2());
@@ -2561,7 +3290,7 @@ TileDataCollisionEditor::TileDataCollisionEditor() {
 	add_child(angular_velocity_editor);
 	property_editors["angular_velocity"] = angular_velocity_editor;
 
-	_polygons_i_changed();
+	_rectangles_changed();
 }
 
 TileDataCollisionEditor::~TileDataCollisionEditor() {
@@ -2587,15 +3316,13 @@ void TileDataCollisionEditor::draw_over_tile(CanvasItem *p_canvas_item, Transfor
 	RenderingServer::get_singleton()->canvas_item_add_set_transform(p_canvas_item->get_canvas_item(), p_transform);
 
 	Ref<Texture2D> one_way_icon = get_editor_theme_icon(SNAME("OneWayTile"));
-	for (int i = 0; i < tile_data->get_collision_polygons_count(physics_layer); i++) {
-		Vector<Vector2i> polygon = tile_data->get_collision_polygon_points(physics_layer, i);
-		if (polygon.size() < 3) {
-			continue;
-		}
+	for (int i = 0; i < tile_data->get_collision_rectangles_count(physics_layer); i++) {
+		Vector<Vector2i> rectangle = tile_data->get_collision_rectangle_data(physics_layer, i);
 
+		Vector<Vector2i> polygon = rectangle_to_polygon(rectangle[0], rectangle[1]);
 		p_canvas_item->draw_polygon_i(polygon, color);
 
-		if (tile_data->is_collision_polygon_one_way(physics_layer, i)) {
+		if (tile_data->is_collision_rectangle_one_way(physics_layer, i)) {
 			PackedVector2Array uvs;
 			uvs.resize(polygon.size());
 			Vector2 size_1 = Vector2(1, 1) / tile_set->get_tile_size();

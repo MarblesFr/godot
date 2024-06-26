@@ -208,7 +208,6 @@ public:
 	EXBIND0R(RID, separation_ray_shape_create)
 	EXBIND0R(RID, segment_shape_create)
 	EXBIND0R(RID, rectangle_shape_create)
-	EXBIND0R(RID, convex_polygon_shape_create)
 
 	EXBIND2(shape_set_data, RID, const Variant &)
 	EXBIND2(shape_set_custom_solver_bias, RID, real_t)

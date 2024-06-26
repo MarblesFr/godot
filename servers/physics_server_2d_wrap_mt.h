@@ -75,7 +75,6 @@ public:
 	FUNCRID(separation_ray_shape)
 	FUNCRID(segment_shape)
 	FUNCRID(rectangle_shape)
-	FUNCRID(convex_polygon_shape)
 
 	FUNC2(shape_set_data, RID, const Variant &);
 	FUNC2(shape_set_custom_solver_bias, RID, real_t);

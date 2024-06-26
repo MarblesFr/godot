@@ -224,7 +224,6 @@ public:
 		SHAPE_SEPARATION_RAY, ///< float:"length"
 		SHAPE_SEGMENT, ///< float:"length"
 		SHAPE_RECTANGLE, ///< vec3:"extents"
-		SHAPE_CONVEX_POLYGON, ///< array of planes:"planes"
 		SHAPE_CUSTOM, ///< Server-Implementation based custom shape, calling shape_create() with this value will result in an error
 	};
 
@@ -232,7 +231,6 @@ public:
 	virtual RID separation_ray_shape_create() = 0;
 	virtual RID segment_shape_create() = 0;
 	virtual RID rectangle_shape_create() = 0;
-	virtual RID convex_polygon_shape_create() = 0;
 
 	virtual void shape_set_data(RID p_shape, const Variant &p_data) = 0;
 	virtual void shape_set_custom_solver_bias(RID p_shape, real_t p_bias) = 0;

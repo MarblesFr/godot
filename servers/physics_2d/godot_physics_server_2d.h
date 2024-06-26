@@ -87,7 +87,6 @@ public:
 	virtual RID separation_ray_shape_create() override;
 	virtual RID segment_shape_create() override;
 	virtual RID rectangle_shape_create() override;
-	virtual RID convex_polygon_shape_create() override;
 
 	static void _shape_col_cbk(const Vector2i &p_point_A, const Vector2i &p_point_B, void *p_userdata);
 

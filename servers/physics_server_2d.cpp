@@ -664,7 +664,6 @@ void PhysicsServer2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("separation_ray_shape_create"), &PhysicsServer2D::separation_ray_shape_create);
 	ClassDB::bind_method(D_METHOD("segment_shape_create"), &PhysicsServer2D::segment_shape_create);
 	ClassDB::bind_method(D_METHOD("rectangle_shape_create"), &PhysicsServer2D::rectangle_shape_create);
-	ClassDB::bind_method(D_METHOD("convex_polygon_shape_create"), &PhysicsServer2D::convex_polygon_shape_create);
 
 	ClassDB::bind_method(D_METHOD("shape_set_data", "shape", "data"), &PhysicsServer2D::shape_set_data);
 
@@ -847,7 +846,6 @@ void PhysicsServer2D::_bind_methods() {
 	BIND_ENUM_CONSTANT(SHAPE_SEPARATION_RAY);
 	BIND_ENUM_CONSTANT(SHAPE_SEGMENT);
 	BIND_ENUM_CONSTANT(SHAPE_RECTANGLE);
-	BIND_ENUM_CONSTANT(SHAPE_CONVEX_POLYGON);
 	BIND_ENUM_CONSTANT(SHAPE_CUSTOM);
 
 	BIND_ENUM_CONSTANT(AREA_PARAM_GRAVITY_OVERRIDE_MODE);
