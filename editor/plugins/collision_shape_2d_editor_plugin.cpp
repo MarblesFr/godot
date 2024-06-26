@@ -122,20 +122,67 @@ void CollisionShape2DEditor::set_handle(int idx, Point2i &p_point) {
 				Ref<RectangleShape2D> rect = node->get_shape();
 				Vector2i size = (Point2i)original;
 
-				if (RECT_HANDLES[idx].x != 0) {
-					size.x = p_point.x * RECT_HANDLES[idx].x * 2;
-				}
+				Vector2i new_position_delta = Vector2i();
+
+				int y_delta = 0;
+				int new_height = 0;
 				if (RECT_HANDLES[idx].y != 0) {
-					size.y = p_point.y * RECT_HANDLES[idx].y * 2;
+					int half_height = size.y / 2;
+					if ((idx == 1 || idx == 2 || idx == 3) && size.y % 2 == 1) {
+						half_height += 1;
+					}
+					y_delta = p_point.y - half_height * RECT_HANDLES[idx].y;
+					new_height = size.y + y_delta * RECT_HANDLES[idx].y;
+					if (new_height < 1) {
+						y_delta -= (new_height - 1) * RECT_HANDLES[idx].y;
+						new_height = 1;
+					}
+				}
+
+				int x_delta = 0;
+				int new_width = 0;
+				if (RECT_HANDLES[idx].x != 0) {
+					int half_width = size.x / 2;
+					if ((idx == 7 || idx == 0 || idx == 1) && size.x % 2 == 1) {
+						half_width += 1;
+					}
+					x_delta = p_point.x - half_width * RECT_HANDLES[idx].x;
+					new_width = size.x + x_delta * RECT_HANDLES[idx].x;
+					if (new_width < 1) {
+						x_delta -= (new_width - 1) * RECT_HANDLES[idx].x;
+						new_width = 1;
+					}
+				}
+
+				if (y_delta != 0) {
+					if (new_height % 2 == 1 && size.y % 2 == 0) {
+						new_position_delta.y += ((y_delta - 1) / 2);
+					} else if (new_height % 2 == 0 && size.y % 2 == 1) {
+						new_position_delta.y += ((y_delta + 1) / 2);
+					} else {
+						new_position_delta.y += (y_delta / 2);
+					}
+					size.y = new_height;
+				}
+
+				if (x_delta != 0) {
+					if (new_width % 2 == 1 && size.x % 2 == 0) {
+						new_position_delta.x += ((x_delta - 1) / 2);
+					} else if (new_width % 2 == 0 && size.x % 2 == 1) {
+						new_position_delta.x += ((x_delta + 1) / 2);
+					} else {
+						new_position_delta.x += (x_delta / 2);
+					}
+					size.x = new_width;
 				}
 
 				if (Input::get_singleton()->is_key_pressed(Key::ALT)) {
-					rect->set_size(size.abs());
+					rect->set_size(((Point2i)original + ((size - (Point2i)original) * 2)).abs());
 					node->set_global_position(original_transform.get_origin());
 				} else {
-					rect->set_size(((Point2i)original + (Vector2(size - (Point2i)original) * 0.5).ceil()).abs());
+					rect->set_size(size.abs());
 					Point2i pos = original_transform.affine_inverse().xform(original_transform.get_origin());
-					pos += (Vector2((size - (Point2i)original) * RECT_HANDLES[idx]) * 0.25).ceil();
+					pos += new_position_delta;
 					node->set_global_position(original_transform.xform(pos));
 				}
 			}
