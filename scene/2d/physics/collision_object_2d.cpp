@@ -545,6 +545,18 @@ void CollisionObject2D::set_body_mode(PhysicsServer2D::BodyMode p_mode) {
 	PhysicsServer2D::get_singleton()->body_set_mode(rid, p_mode);
 }
 
+void CollisionObject2D::set_collider_type(PhysicsServer2D::ColliderType p_type) {
+	ERR_FAIL_COND(area);
+
+	if (collider_type == p_type) {
+		return;
+	}
+
+	collider_type = p_type;
+
+	PhysicsServer2D::get_singleton()->body_set_collider_type(rid, p_type);
+}
+
 void CollisionObject2D::_space_changed(const RID &p_new_space) {
 }
 
@@ -646,6 +658,7 @@ CollisionObject2D::CollisionObject2D(RID p_rid, bool p_area) {
 	} else {
 		PhysicsServer2D::get_singleton()->body_attach_object_instance_id(rid, get_instance_id());
 		PhysicsServer2D::get_singleton()->body_set_mode(rid, body_mode);
+		PhysicsServer2D::get_singleton()->body_set_collider_type(rid, collider_type);
 	}
 }
 

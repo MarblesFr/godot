@@ -43,6 +43,7 @@ class GodotPhysicsDirectBodyState2D;
 
 class GodotBody2D : public GodotCollisionObject2D {
 	PhysicsServer2D::BodyMode mode = PhysicsServer2D::BODY_MODE_RIGID;
+	PhysicsServer2D::ColliderType type = PhysicsServer2D::COLLIDER_TYPE_SOLID;
 
 	Vector2 biased_linear_velocity;
 	real_t biased_angular_velocity = 0.0;
@@ -296,6 +297,9 @@ public:
 
 	void set_mode(PhysicsServer2D::BodyMode p_mode);
 	PhysicsServer2D::BodyMode get_mode() const;
+
+	void set_collider_type(PhysicsServer2D::ColliderType p_type);
+	PhysicsServer2D::ColliderType get_collider_type() const;
 
 	void set_state(PhysicsServer2D::BodyState p_state, const Variant &p_variant);
 	Variant get_state(PhysicsServer2D::BodyState p_state) const;

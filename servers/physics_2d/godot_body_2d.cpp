@@ -291,6 +291,14 @@ PhysicsServer2D::BodyMode GodotBody2D::get_mode() const {
 	return mode;
 }
 
+void GodotBody2D::set_collider_type(PhysicsServer2D::ColliderType p_collider_type) {
+	type = p_collider_type;
+}
+
+PhysicsServer2D::ColliderType GodotBody2D::get_collider_type() const {
+	return type;
+}
+
 void GodotBody2D::_shapes_changed() {
 	_mass_properties_changed();
 	wakeup();

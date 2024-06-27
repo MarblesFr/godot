@@ -184,6 +184,7 @@
 #include "scene/2d/physics/animatable_body_2d.h"
 #include "scene/2d/physics/area_2d.h"
 #include "scene/2d/physics/character_body_2d.h"
+#include "scene/2d/physics/solid_body_2d.h"
 #include "scene/2d/physics/collision_shape_2d.h"
 #include "scene/2d/physics/joints/damped_spring_joint_2d.h"
 #include "scene/2d/physics/joints/groove_joint_2d.h"
@@ -786,6 +787,7 @@ void register_scene_types() {
 	GDREGISTER_CLASS(AnimatableBody2D);
 	GDREGISTER_CLASS(RigidBody2D);
 	GDREGISTER_CLASS(CharacterBody2D);
+	GDREGISTER_CLASS(SolidBody2D);
 	GDREGISTER_CLASS(KinematicCollision2D);
 	GDREGISTER_CLASS(Area2D);
 	GDREGISTER_CLASS(CollisionShape2D);

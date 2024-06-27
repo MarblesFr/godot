@@ -42,22 +42,26 @@ class PhysicsBody2D : public CollisionObject2D {
 
 protected:
 	static void _bind_methods();
-	PhysicsBody2D(PhysicsServer2D::BodyMode p_mode);
+	PhysicsBody2D(PhysicsServer2D::BodyMode p_mode, PhysicsServer2D::ColliderType p_type);
+	Vector2 position_delta;
 
 public:
-	bool move_h(float_t moveH, const Callable &collisionCallback = Callable());
-	bool move_v(float_t moveV, const Callable &collisionCallback = Callable());
-	bool move_h_exact(int32_t moveH, const Callable &collisionCallback);
-	bool move_v_exact(int32_t moveV, const Callable &collisionCallback);
+	bool move_h(float_t move_h, const Callable &collisionCallback = Callable());
+	bool move_v(float_t move_v, const Callable &collisionCallback = Callable());
+	virtual bool move_h_exact(int32_t move_h, const Callable &collisionCallback) {
+		translate(Vector2i(move_h, 0));
+		return false;
+	};
+	virtual bool move_v_exact(int32_t move_v, const Callable &collisionCallback) {
+		translate(Vector2i(move_v, 0));
+		return false;
+	};
 	bool test_move(const Transform2Di &p_from, const Vector2i &p_motion, const Ref<KinematicCollision2D> &r_collision = Ref<KinematicCollision2D>(), bool p_recovery_as_collision = false);
 	Vector2i get_gravity() const;
 
 	TypedArray<PhysicsBody2D> get_collision_exceptions();
 	void add_collision_exception_with(Node *p_node); //must be physicsbody
 	void remove_collision_exception_with(Node *p_node);
-
-private:
-	Vector2 position_delta;
 };
 
 #endif // PHYSICS_BODY_2D_H

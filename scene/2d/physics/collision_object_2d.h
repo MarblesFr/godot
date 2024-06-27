@@ -59,6 +59,7 @@ private:
 	DisableMode disable_mode = DISABLE_MODE_REMOVE;
 
 	PhysicsServer2D::BodyMode body_mode = PhysicsServer2D::BODY_MODE_STATIC;
+	PhysicsServer2D::ColliderType collider_type = PhysicsServer2D::COLLIDER_TYPE_SOLID;
 
 	struct ShapeData {
 		ObjectID owner_id;
@@ -107,6 +108,7 @@ protected:
 	bool is_only_update_transform_changes_enabled() const;
 
 	void set_body_mode(PhysicsServer2D::BodyMode p_mode);
+	void set_collider_type(PhysicsServer2D::ColliderType p_type);
 
 	virtual void _space_changed(const RID &p_new_space);
 

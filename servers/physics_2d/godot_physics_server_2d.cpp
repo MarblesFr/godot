@@ -551,6 +551,21 @@ PhysicsServer2D::BodyMode GodotPhysicsServer2D::body_get_mode(RID p_body) const 
 	return body->get_mode();
 };
 
+void GodotPhysicsServer2D::body_set_collider_type(RID p_body, ColliderType p_collider_type) {
+	GodotBody2D *body = body_owner.get_or_null(p_body);
+	ERR_FAIL_NULL(body);
+	FLUSH_QUERY_CHECK(body);
+
+	body->set_collider_type(p_collider_type);
+};
+
+PhysicsServer2D::ColliderType GodotPhysicsServer2D::body_get_collider_type(RID p_body) const {
+	GodotBody2D *body = body_owner.get_or_null(p_body);
+	ERR_FAIL_NULL_V(body, COLLIDER_TYPE_SOLID);
+
+	return body->get_collider_type();
+};
+
 void GodotPhysicsServer2D::body_add_shape(RID p_body, RID p_shape, const Transform2Di &p_transform, bool p_disabled) {
 	GodotBody2D *body = body_owner.get_or_null(p_body);
 	ERR_FAIL_NULL(body);
@@ -974,7 +989,7 @@ bool GodotPhysicsServer2D::body_test_motion(RID p_body, const MotionParameters &
 	return body->get_space()->test_body_motion(body, p_parameters, r_result);
 }
 
-bool GodotPhysicsServer2D::body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, CollisionResult *r_result) {
+bool GodotPhysicsServer2D::body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, CollisionResult *r_result, const int16_t collision_type_filter) {
 	GodotBody2D *body = body_owner.get_or_null(p_body);
 	ERR_FAIL_NULL_V(body, false);
 	ERR_FAIL_NULL_V(body->get_space(), false);
@@ -982,7 +997,7 @@ bool GodotPhysicsServer2D::body_collides_at(RID p_body, const Transform2Di from,
 
 	_update_shapes();
 
-	return body->get_space()->body_collides_at(body, from, delta, r_result);
+	return body->get_space()->body_collides_at(body, from, delta, r_result, collision_type_filter);
 }
 
 PhysicsDirectBodyState2D *GodotPhysicsServer2D::body_get_direct_state(RID p_body) {

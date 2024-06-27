@@ -92,5 +92,5 @@ void StaticBody2D::_bind_methods() {
 }
 
 StaticBody2D::StaticBody2D(PhysicsServer2D::BodyMode p_mode) :
-		PhysicsBody2D(p_mode) {
+		PhysicsBody2D(p_mode, PhysicsServer2D::COLLIDER_TYPE_SOLID) {
 }

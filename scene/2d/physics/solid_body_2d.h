@@ -1,5 +1,5 @@
 /**************************************************************************/
-/*  character_body_2d.cpp                                                 */
+/*  character_body_2d.h                                                   */
 /**************************************************************************/
 /*                         This file is part of:                          */
 /*                             GODOT ENGINE                               */
@@ -28,58 +28,20 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#include "character_body_2d.h"
+#ifndef SOLID_BODY_2D_H
+#define SOLID_BODY_2D_H
 
-CharacterBody2D::CharacterBody2D() :
-		PhysicsBody2D(PhysicsServer2D::BODY_MODE_KINEMATIC, PhysicsServer2D::COLLIDER_TYPE_ACTOR) {
-}
+#include "scene/2d/physics/kinematic_collision_2d.h"
+#include "scene/2d/physics/physics_body_2d.h"
 
-bool CharacterBody2D::move_h_exact(int32_t amount, const Callable &collision_callback) {
-	Vector2i target_position = get_position() + Vector2i(amount, 0);
-	int move_dir = SIGN(amount);
-	Vector2i move_dir_vector = Vector2i(move_dir, 0);
-	int amount_moved = 0;
-	PhysicsServer2D::CollisionResult r_result;
-	while (amount != 0)
-	{
-		bool colliding = PhysicsServer2D::get_singleton()->body_collides_at(get_rid(), get_global_transform_i(), move_dir_vector, &r_result);
-		if (colliding)
-		{
-			position_delta.x = 0;
-			if (collision_callback.is_valid())
-			{
-				collision_callback.call(move_dir_vector, Vector2i(0, amount_moved), target_position, r_result.collider);
-			}
-			return true;
-		}
-		amount_moved += move_dir;
-		amount -= move_dir;
-		translate(move_dir_vector);
-	}
-	return false;
-}
+class SolidBody2D : public PhysicsBody2D {
+	GDCLASS(SolidBody2D, PhysicsBody2D);
 
-bool CharacterBody2D::move_v_exact(int32_t amount, const Callable &collision_callback) {
-	Vector2i target_position = get_position() + Vector2i(0, amount);
-	int move_dir = SIGN(amount);
-	Vector2i move_dir_vector = Vector2i(0, move_dir);
-	int amount_moved = 0;
-	PhysicsServer2D::CollisionResult r_result;
-	while (amount != 0)
-	{
-		bool colliding = PhysicsServer2D::get_singleton()->body_collides_at(get_rid(), get_global_transform_i(), move_dir_vector, &r_result);
-		if (colliding)
-		{
-			position_delta.x = 0;
-			if (collision_callback.is_valid())
-			{
-				collision_callback.call(move_dir_vector, Vector2i(0, amount_moved), target_position, r_result.collider);
-			}
-			return true;
-		}
-		amount_moved += move_dir;
-		amount -= move_dir;
-		translate(move_dir_vector);
-	}
-	return false;
-}
+public:
+	bool move_h_exact(int32_t move_h, const Callable &collisionCallback) override;
+	bool move_v_exact(int32_t move_v, const Callable &collisionCallback) override;
+
+	SolidBody2D();
+};
+
+#endif // SOLID_BODY_2D_H

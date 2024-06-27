@@ -1014,7 +1014,7 @@ bool GodotSpace2D::test_body_motion(GodotBody2D *p_body, const PhysicsServer2D::
 	return collided;
 }
 
-bool GodotSpace2D::body_collides_at(GodotBody2D *p_body, const Transform2Di from, const Vector2i delta, PhysicsServer2D::CollisionResult *r_result) {
+bool GodotSpace2D::body_collides_at(GodotBody2D *p_body, const Transform2Di from, const Vector2i delta, PhysicsServer2D::CollisionResult *r_result, const int16_t collision_type_filter) {
 	//give me back regular physics engine logic
 	//this is madness
 	//and most people using this function will think
@@ -1084,80 +1084,46 @@ bool GodotSpace2D::body_collides_at(GodotBody2D *p_body, const Transform2Di from
 
 			amount = _cull_aabb_for_body(p_body, shape_moved_aabb);
 
-			if (amount > 0) {
-				const GodotCollisionObject2D *col_obj = intersection_query_results[0];
-				int col_shape_idx = intersection_query_subindex_results[0];
+			GodotShape2D *body_shape = p_body->get_shape(body_shape_idx);
+
+			for (int i = 0; i < amount; i++) {
+				GodotCollisionObject2D *col_obj = intersection_query_results[i];
+
+				if(col_obj->get_type() == GodotCollisionObject2D::TYPE_BODY) {
+					GodotBody2D *col_body = static_cast<GodotBody2D *>(col_obj);
+					if (col_body) {
+						if(!(col_body->get_collider_type() & collision_type_filter)) {
+							continue;
+						}
+					}
+				}
+
+				int col_shape_idx = intersection_query_subindex_results[i];
+
+				GodotShape2D *against_shape = col_obj->get_shape(col_shape_idx);
+
+				bool excluded = false;
+				for (int k = 0; k < excluded_shape_pair_count; k++) {
+					if (excluded_shape_pairs[k].local_shape == body_shape && excluded_shape_pairs[k].against_object == col_obj && excluded_shape_pairs[k].against_shape_index == col_shape_idx) {
+						excluded = true;
+						break;
+					}
+				}
+				if (excluded) {
+					continue;
+				}
+
 				if (r_result) {
 					r_result->collider = col_obj->get_self();
 					r_result->collider_id = col_obj->get_instance_id();
 					r_result->collider_shape = col_shape_idx;
-//					r_result->collision_local_shape = 0;
+					r_result->collision_local_shape = i;
 //					r_result->collision_normal = ccd.normal;
 //					r_result->collision_point = ccd.contact;
 				}
 				return true;
 			}
 		}
-
-//		for (int body_shape_idx = 0; body_shape_idx < p_body->get_shape_count(); body_shape_idx++) {
-//			if (p_body->is_shape_disabled(body_shape_idx)) {
-//				continue;
-//			}
-//
-//			GodotShape2D *body_shape = p_body->get_shape(body_shape_idx);
-//
-////			// Colliding separation rays allows to properly snap to the ground,
-////			// otherwise it's not needed in regular motion.
-////			if (!p_parameters.collide_separation_ray && (body_shape->get_type() == PhysicsServer2D::SHAPE_SEPARATION_RAY)) {
-////				// When slide on slope is on, separation ray shape acts like a regular shape.
-////				if (!static_cast<GodotSeparationRayShape2D *>(body_shape)->get_slide_on_slope()) {
-////					continue;
-////				}
-////			}
-//
-//			Transform2Di body_shape_xform = body_transform * p_body->get_shape_transform(body_shape_idx);
-//
-//			_CollisionCallbackData2D ccd;
-//
-//			for (int i = 0; i < amount; i++) {
-//				const GodotCollisionObject2D *col_obj = intersection_query_results[i];
-////				if (p_parameters.exclude_bodies.has(col_obj->get_self())) {
-////					continue;
-////				}
-////				if (p_parameters.exclude_objects.has(col_obj->get_instance_id())) {
-////					continue;
-////				}
-//
-//				int col_shape_idx = intersection_query_subindex_results[i];
-//				GodotShape2D *against_shape = col_obj->get_shape(col_shape_idx);
-//
-//				bool excluded = false;
-//
-//				for (int k = 0; k < excluded_shape_pair_count; k++) {
-//					if (excluded_shape_pairs[k].local_shape == body_shape && excluded_shape_pairs[k].against_object == col_obj && excluded_shape_pairs[k].against_shape_index == col_shape_idx) {
-//						excluded = true;
-//						break;
-//					}
-//				}
-//
-//				if (excluded) {
-//					continue;
-//				}
-//
-//				Transform2Di col_obj_shape_xform = col_obj->get_transform() * col_obj->get_shape_transform(col_shape_idx);
-//				if (GodotCollisionSolver2D::solve(body_shape, body_shape_xform, delta, against_shape, col_obj_shape_xform, Vector2(), _collision_cbk_result, &ccd, nullptr)) {
-//					if (r_result) {
-//						r_result->collider = col_obj->get_self();
-//						r_result->collider_id = col_obj->get_instance_id();
-//						r_result->collider_shape = col_shape_idx;
-//						r_result->collision_local_shape = i;
-//						r_result->collision_normal = ccd.normal;
-//						r_result->collision_point = ccd.contact;
-//					}
-//					return true;
-//				}
-//			}
-//		}
 	}
 
 

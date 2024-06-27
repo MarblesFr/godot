@@ -213,6 +213,9 @@ void PhysicsServer2DExtension::_bind_methods() {
 	GDVIRTUAL_BIND(_body_set_mode, "body", "mode");
 	GDVIRTUAL_BIND(_body_get_mode, "body");
 
+	GDVIRTUAL_BIND(_body_set_collider_type, "body", "type");
+	GDVIRTUAL_BIND(_body_get_collider_type, "body");
+
 	GDVIRTUAL_BIND(_body_add_shape, "body", "shape", "transform", "disabled");
 	GDVIRTUAL_BIND(_body_set_shape, "body", "shape_idx", "shape");
 	GDVIRTUAL_BIND(_body_set_shape_transform, "body", "shape_idx", "transform");

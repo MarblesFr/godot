@@ -38,6 +38,9 @@ class CharacterBody2D : public PhysicsBody2D {
 	GDCLASS(CharacterBody2D, PhysicsBody2D);
 
 public:
+	bool move_h_exact(int32_t move_h, const Callable &collisionCallback) override;
+	bool move_v_exact(int32_t move_v, const Callable &collisionCallback) override;
+
 	CharacterBody2D();
 };
 

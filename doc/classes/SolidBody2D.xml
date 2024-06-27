@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<class name="SolidBody2D" inherits="PhysicsBody2D" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="../class.xsd">
+	<brief_description>
+		A 2D physics body specialized for solids moved by script.
+	</brief_description>
+	<description>
+		[SolidBody2D] is a specialized class for physics bodies that are meant to be kinematic physics objects.
+	</description>
+	<tutorials>
+	</tutorials>
+	<methods>
+	</methods>
+	<members>
+	</members>
+	<constants>
+	</constants>
+</class>

@@ -799,7 +799,7 @@ void RigidBody2D::_validate_property(PropertyInfo &p_property) const {
 }
 
 RigidBody2D::RigidBody2D() :
-		PhysicsBody2D(PhysicsServer2D::BODY_MODE_RIGID) {
+		PhysicsBody2D(PhysicsServer2D::BODY_MODE_RIGID, PhysicsServer2D::COLLIDER_TYPE_SIMULATED) {
 	PhysicsServer2D::get_singleton()->body_set_state_sync_callback(get_rid(), callable_mp(this, &RigidBody2D::_body_state_changed));
 }
 

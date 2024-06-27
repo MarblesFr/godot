@@ -650,13 +650,13 @@ bool PhysicsServer2D::_body_test_motion(RID p_body, const Ref<PhysicsTestMotionP
 	return body_test_motion(p_body, p_parameters->get_parameters(), result_ptr);
 }
 
-bool PhysicsServer2D::_body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, const Ref<PhysicsCollisionResult2D> &p_result) {
+bool PhysicsServer2D::_body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, const Ref<PhysicsCollisionResult2D> &p_result, const int16_t collision_type_filter) {
 	CollisionResult *result_ptr = nullptr;
 	if (p_result.is_valid()) {
 		result_ptr = p_result->get_result_ptr();
 	}
 
-	return body_collides_at(p_body, from, delta, result_ptr);
+	return body_collides_at(p_body, from, delta, result_ptr, collision_type_filter);
 }
 
 void PhysicsServer2D::_bind_methods() {
@@ -722,6 +722,9 @@ void PhysicsServer2D::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("body_set_mode", "body", "mode"), &PhysicsServer2D::body_set_mode);
 	ClassDB::bind_method(D_METHOD("body_get_mode", "body"), &PhysicsServer2D::body_get_mode);
+
+	ClassDB::bind_method(D_METHOD("body_set_collider_type", "body", "type"), &PhysicsServer2D::body_set_collider_type);
+	ClassDB::bind_method(D_METHOD("body_get_collider_type", "body"), &PhysicsServer2D::body_get_collider_type);
 
 	ClassDB::bind_method(D_METHOD("body_add_shape", "body", "shape", "transform", "disabled"), &PhysicsServer2D::body_add_shape, DEFVAL(Transform2Di()), DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("body_set_shape", "body", "shape_idx", "shape"), &PhysicsServer2D::body_set_shape);
@@ -795,7 +798,7 @@ void PhysicsServer2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("body_set_force_integration_callback", "body", "callable", "userdata"), &PhysicsServer2D::body_set_force_integration_callback, DEFVAL(Variant()));
 
 	ClassDB::bind_method(D_METHOD("body_test_motion", "body", "parameters", "result"), &PhysicsServer2D::_body_test_motion, DEFVAL(Variant()));
-	ClassDB::bind_method(D_METHOD("body_collides_at", "body", "from", "delta", "result"), &PhysicsServer2D::_body_collides_at, DEFVAL(Variant()));
+	ClassDB::bind_method(D_METHOD("body_collides_at", "body", "from", "delta", "result", "collision_type_filter"), &PhysicsServer2D::_body_collides_at, DEFVAL(Variant()));
 
 	ClassDB::bind_method(D_METHOD("body_get_direct_state", "body"), &PhysicsServer2D::body_get_direct_state);
 

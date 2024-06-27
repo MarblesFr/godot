@@ -28,13 +28,13 @@
 /* SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.                 */
 /**************************************************************************/
 
-#include "character_body_2d.h"
+#include "solid_body_2d.h"
 
-CharacterBody2D::CharacterBody2D() :
-		PhysicsBody2D(PhysicsServer2D::BODY_MODE_KINEMATIC, PhysicsServer2D::COLLIDER_TYPE_ACTOR) {
+SolidBody2D::SolidBody2D() :
+		PhysicsBody2D(PhysicsServer2D::BODY_MODE_KINEMATIC, PhysicsServer2D::COLLIDER_TYPE_SOLID) {
 }
 
-bool CharacterBody2D::move_h_exact(int32_t amount, const Callable &collision_callback) {
+bool SolidBody2D::move_h_exact(int32_t amount, const Callable &collision_callback) {
 	Vector2i target_position = get_position() + Vector2i(amount, 0);
 	int move_dir = SIGN(amount);
 	Vector2i move_dir_vector = Vector2i(move_dir, 0);
@@ -59,7 +59,7 @@ bool CharacterBody2D::move_h_exact(int32_t amount, const Callable &collision_cal
 	return false;
 }
 
-bool CharacterBody2D::move_v_exact(int32_t amount, const Callable &collision_callback) {
+bool SolidBody2D::move_v_exact(int32_t amount, const Callable &collision_callback) {
 	Vector2i target_position = get_position() + Vector2i(0, amount);
 	int move_dir = SIGN(amount);
 	Vector2i move_dir_vector = Vector2i(0, move_dir);

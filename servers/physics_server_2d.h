@@ -211,7 +211,7 @@ class PhysicsServer2D : public Object {
 	static PhysicsServer2D *singleton;
 
 	virtual bool _body_test_motion(RID p_body, const Ref<PhysicsTestMotionParameters2D> &p_parameters, const Ref<PhysicsTestMotionResult2D> &p_result = Ref<PhysicsTestMotionResult2D>());
-	virtual bool _body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, const Ref<PhysicsCollisionResult2D> &r_result = Ref<PhysicsCollisionResult2D>());
+	virtual bool _body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, const Ref<PhysicsCollisionResult2D> &r_result = Ref<PhysicsCollisionResult2D>(), const int16_t collision_type_filter = DEFAULT_COLLIDER_FILTER);
 
 protected:
 	static void _bind_methods();
@@ -350,6 +350,14 @@ public:
 		BODY_MODE_RIGID_LINEAR,
 	};
 
+	enum ColliderType {
+		COLLIDER_TYPE_ACTOR = 1 << 0,
+		COLLIDER_TYPE_SOLID = 1 << 1,
+		COLLIDER_TYPE_SIMULATED = 1 << 2,
+	};
+
+	static const int16_t DEFAULT_COLLIDER_FILTER = COLLIDER_TYPE_SOLID;
+
 	virtual RID body_create() = 0;
 
 	virtual void body_set_space(RID p_body, RID p_space) = 0;
@@ -357,6 +365,9 @@ public:
 
 	virtual void body_set_mode(RID p_body, BodyMode p_mode) = 0;
 	virtual BodyMode body_get_mode(RID p_body) const = 0;
+
+	virtual void body_set_collider_type(RID p_body, ColliderType p_collider_type) = 0;
+	virtual ColliderType body_get_collider_type(RID p_body) const = 0;
 
 	virtual void body_add_shape(RID p_body, RID p_shape, const Transform2Di &p_transform = Transform2Di(), bool p_disabled = false) = 0;
 	virtual void body_set_shape(RID p_body, int p_shape_idx, RID p_shape) = 0;
@@ -527,7 +538,7 @@ public:
 	};
 
 	virtual bool body_test_motion(RID p_body, const MotionParameters &p_parameters, MotionResult *r_result = nullptr) = 0;
-	virtual bool body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, CollisionResult *r_result = nullptr) = 0;
+	virtual bool body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, CollisionResult *r_result = nullptr, const int16_t collision_type_filter = DEFAULT_COLLIDER_FILTER) = 0;
 
 	/* JOINT API */
 
@@ -854,6 +865,7 @@ VARIANT_ENUM_CAST(PhysicsServer2D::SpaceParameter);
 VARIANT_ENUM_CAST(PhysicsServer2D::AreaParameter);
 VARIANT_ENUM_CAST(PhysicsServer2D::AreaSpaceOverrideMode);
 VARIANT_ENUM_CAST(PhysicsServer2D::BodyMode);
+VARIANT_ENUM_CAST(PhysicsServer2D::ColliderType);
 VARIANT_ENUM_CAST(PhysicsServer2D::BodyParameter);
 VARIANT_ENUM_CAST(PhysicsServer2D::BodyDampMode);
 VARIANT_ENUM_CAST(PhysicsServer2D::BodyState);

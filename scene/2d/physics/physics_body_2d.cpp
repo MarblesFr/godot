@@ -41,9 +41,10 @@ void PhysicsBody2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("remove_collision_exception_with", "body"), &PhysicsBody2D::remove_collision_exception_with);
 }
 
-PhysicsBody2D::PhysicsBody2D(PhysicsServer2D::BodyMode p_mode) :
+PhysicsBody2D::PhysicsBody2D(PhysicsServer2D::BodyMode p_mode, PhysicsServer2D::ColliderType p_type) :
 		CollisionObject2D(PhysicsServer2D::get_singleton()->body_create(), false) {
 	set_body_mode(p_mode);
+	set_collider_type(p_type);
 	set_pickable(false);
 }
 
@@ -67,55 +68,6 @@ bool PhysicsBody2D::move_v(float_t amount, const Callable &collision_callback) {
 	return move_v_exact(whole_move, collision_callback);
 }
 
-bool PhysicsBody2D::move_h_exact(int32_t amount, const Callable &collision_callback) {
-	Vector2i target_position = get_position() + Vector2i(amount, 0);
-	int move_dir = SIGN(amount);
-	Vector2i move_dir_vector = Vector2i(move_dir, 0);
-	int amount_moved = 0;
-	PhysicsServer2D::CollisionResult r_result;
-	while (amount != 0)
-	{
-		bool colliding = PhysicsServer2D::get_singleton()->body_collides_at(get_rid(), get_global_transform_i(), move_dir_vector, &r_result);
-		if (colliding)
-		{
-			position_delta.x = 0;
-			if (collision_callback.is_valid())
-			{
-				collision_callback.call(move_dir_vector, Vector2i(0, amount_moved), target_position, r_result.collider);
-			}
-			return true;
-		}
-		amount_moved += move_dir;
-		amount -= move_dir;
-		translate(move_dir_vector);
-	}
-	return false;
-}
-
-bool PhysicsBody2D::move_v_exact(int32_t amount, const Callable &collision_callback) {
-	Vector2i target_position = get_position() + Vector2i(0, amount);
-	int move_dir = SIGN(amount);
-	Vector2i move_dir_vector = Vector2i(0, move_dir);
-	int amount_moved = 0;
-	PhysicsServer2D::CollisionResult r_result;
-	while (amount != 0)
-	{
-		bool colliding = PhysicsServer2D::get_singleton()->body_collides_at(get_rid(), get_global_transform_i(), move_dir_vector, &r_result);
-		if (colliding)
-		{
-			position_delta.x = 0;
-			if (collision_callback.is_valid())
-			{
-				collision_callback.call(move_dir_vector, Vector2i(0, amount_moved), target_position, r_result.collider);
-			}
-			return true;
-		}
-		amount_moved += move_dir;
-		amount -= move_dir;
-		translate(move_dir_vector);
-	}
-	return false;
-}
 
 bool PhysicsBody2D::test_move(const Transform2Di &p_from, const Vector2i &p_motion, const Ref<KinematicCollision2D> &r_collision, bool p_recovery_as_collision) {
 	ERR_FAIL_COND_V(!is_inside_tree(), false);

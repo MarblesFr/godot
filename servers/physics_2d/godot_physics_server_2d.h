@@ -170,6 +170,9 @@ public:
 	virtual void body_set_mode(RID p_body, BodyMode p_mode) override;
 	virtual BodyMode body_get_mode(RID p_body) const override;
 
+	virtual void body_set_collider_type(RID p_body, ColliderType p_collider_type) override;
+	virtual ColliderType body_get_collider_type(RID p_body) const override;
+
 	virtual void body_add_shape(RID p_body, RID p_shape, const Transform2Di &p_transform = Transform2Di(), bool p_disabled = false) override;
 	virtual void body_set_shape(RID p_body, int p_shape_idx, RID p_shape) override;
 	virtual void body_set_shape_transform(RID p_body, int p_shape_idx, const Transform2Di &p_transform) override;
@@ -251,7 +254,7 @@ public:
 	virtual void body_set_pickable(RID p_body, bool p_pickable) override;
 
 	virtual bool body_test_motion(RID p_body, const MotionParameters &p_parameters, MotionResult *r_result = nullptr) override;
-	virtual bool body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, CollisionResult *r_result = nullptr) override;
+	virtual bool body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, CollisionResult *r_result = nullptr, const int16_t collision_type_filter = DEFAULT_COLLIDER_FILTER) override;
 
 	// this function only works on physics process, errors and returns null otherwise
 	virtual PhysicsDirectBodyState2D *body_get_direct_state(RID p_body) override;

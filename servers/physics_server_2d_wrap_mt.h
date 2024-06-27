@@ -169,6 +169,9 @@ public:
 	FUNC2(body_set_mode, RID, BodyMode);
 	FUNC1RC(BodyMode, body_get_mode, RID);
 
+	FUNC2(body_set_collider_type, RID, ColliderType);
+	FUNC1RC(ColliderType, body_get_collider_type, RID);
+
 	FUNC4(body_add_shape, RID, RID, const Transform2Di &, bool);
 	FUNC3(body_set_shape, RID, int, RID);
 	FUNC3(body_set_shape_transform, RID, int, const Transform2Di &);
@@ -256,9 +259,9 @@ public:
 		return physics_server_2d->body_test_motion(p_body, p_parameters, r_result);
 	}
 
-	bool body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, CollisionResult *r_result = nullptr) override {
+	bool body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, CollisionResult *r_result = nullptr, const int16_t collision_type_filter = DEFAULT_COLLIDER_FILTER) override {
 		ERR_FAIL_COND_V(!Thread::is_main_thread(), false);
-		return physics_server_2d->body_collides_at(p_body, from, delta, r_result);
+		return physics_server_2d->body_collides_at(p_body, from, delta, r_result, collision_type_filter);
 	}
 
 	// this function only works on physics process, errors and returns null otherwise
