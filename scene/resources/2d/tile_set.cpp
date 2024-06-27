@@ -6344,6 +6344,7 @@ Ref<RectangleShape2D> TileData::get_collision_rectangle_shape(int p_layer_id, in
 		shapes_data.transformed_shape[key];
 		Ref<RectangleShape2D> transformed_rectangle;
 		transformed_rectangle.instantiate();
+		transformed_rectangle->set_size(get_transformed_size(shapes_data.shape->get_size(), p_transpose));
 		transformed_rectangle->set_offset(get_transformed_offset(shapes_data.shape->get_offset(), p_flip_h, p_flip_v, p_transpose));
 		shapes_data.transformed_shape[key] = transformed_rectangle;
 		return shapes_data.transformed_shape[key];
@@ -6532,6 +6533,17 @@ PackedVector2Array TileData::get_transformed_vertices(const PackedVector2Array &
 		w[i] = v;
 	}
 	return new_points;
+}
+
+Vector2i TileData::get_transformed_size(const Vector2i &p_size, bool p_transpose) {
+	Vector2i new_size;
+	if (p_transpose) {
+		new_size = Vector2(p_size.y, p_size.x);
+	} else {
+		new_size = p_size;
+	}
+
+	return new_size;
 }
 
 Vector2i TileData::get_transformed_offset(const Vector2i &p_offset, bool p_flip_h, bool p_flip_v, bool p_transpose) {
