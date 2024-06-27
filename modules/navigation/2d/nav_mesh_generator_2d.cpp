@@ -604,6 +604,7 @@ void NavMeshGenerator2D::generator_parse_tile_map_layer_node(const Ref<Navigatio
 					Vector2i offset = collision_polygon_data[1];
 
 					if (flip_h || flip_v || transpose) {
+						size = TileData::get_transformed_size(size, transpose);
 						offset = TileData::get_transformed_offset(offset, flip_h, flip_v, transpose);
 					}
 
