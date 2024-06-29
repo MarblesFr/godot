@@ -1985,14 +1985,20 @@ void GenericTileRectangleIEditor::_advanced_menu_item_pressed(int p_item_pressed
 			for (unsigned int i = 0; i < rectangles.size(); i++) {
 				Vector<Point2i> new_rectangle;
 				Vector2i scale = rectangles[i][0];
-				Vector2i offset = rectangles[i][1];
+				Vector2 offset = rectangles[i][1];
+				if (scale.x % 2 == 1) {
+					offset.x += 0.5;
+				}
+				if (scale.y % 2 == 1) {
+					offset.y += 0.5;
+				}
 				switch (p_item_pressed) {
 					case ROTATE_RIGHT: {
-						scale = Vector2(scale.y, scale.x);
+						scale = Vector2i(scale.y, scale.x);
 						offset = Vector2(-offset.y, offset.x);
 					} break;
 					case ROTATE_LEFT: {
-						scale = Vector2(scale.y, scale.x);
+						scale = Vector2i(scale.y, scale.x);
 						offset = Vector2(offset.y, -offset.x);
 					} break;
 					case FLIP_HORIZONTALLY: {
@@ -2005,7 +2011,7 @@ void GenericTileRectangleIEditor::_advanced_menu_item_pressed(int p_item_pressed
 						break;
 				}
 				new_rectangle.push_back(scale);
-				new_rectangle.push_back(offset);
+				new_rectangle.push_back(offset.floor());
 				undo_redo->add_do_method(this, "set_rectangle", i, new_rectangle);
 			}
 			undo_redo->add_do_method(base_control, "queue_redraw");
@@ -2283,7 +2289,7 @@ void GenericTileRectangleIEditor::_set_snap_option(int p_index) {
 }
 
 void GenericTileRectangleIEditor::_store_snap_options() {
-	EditorSettings::get_singleton()->set_project_metadata("editor_metadata", "tile_snap_option", current_snap_option);
+	EditorSettings::get_singleton()->set_project_metadata("editor_metadata", "tile_snap_rectangle_option", current_snap_option);
 	EditorSettings::get_singleton()->set_project_metadata("editor_metadata", "tile_snap_subdiv", snap_subdivision->get_value());
 }
 
@@ -2554,7 +2560,7 @@ GenericTileRectangleIEditor::GenericTileRectangleIEditor() {
 	root->add_child(button_center_view);
 
 	snap_subdivision->set_value_no_signal(EditorSettings::get_singleton()->get_project_metadata("editor_metadata", "tile_snap_subdiv", 4));
-	_set_snap_option(EditorSettings::get_singleton()->get_project_metadata("editor_metadata", "tile_snap_option", SNAP_NONE));
+	_set_snap_option(EditorSettings::get_singleton()->get_project_metadata("editor_metadata", "tile_snap_rectangle_option", SNAP_NONE));
 	initializing = false;
 }
 
@@ -3161,7 +3167,7 @@ void TileDataCollisionEditor::_set_painted_value(TileSetAtlasSource *p_tile_set_
 	rectangle_editor->clear_rectangles();
 	for (int i = 0; i < tile_data->get_collision_rectangles_count(physics_layer); i++) {
 		Vector<Vector2i> rectangle = tile_data->get_collision_rectangle_data(physics_layer, i);
-		if (rectangle.size() >= 3) {
+		if (rectangle.size() == 2) {
 			rectangle_editor->add_rectangle(rectangle);
 		}
 	}
@@ -3228,7 +3234,7 @@ void TileDataCollisionEditor::_setup_undo_redo_action(TileSetAtlasSource *p_tile
 		undo_redo->add_undo_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangles_count", coords.x, coords.y, E.key.alternative_tile, physics_layer), old_rectangle_array.size());
 		for (int i = 0; i < old_rectangle_array.size(); i++) {
 			Dictionary rectangle_dict = old_rectangle_array[i];
-			undo_redo->add_undo_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangle_%d/points", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), rectangle_dict["points"]);
+			undo_redo->add_undo_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangle_%d/data", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), rectangle_dict["data"]);
 			undo_redo->add_undo_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangle_%d/one_way", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), rectangle_dict["one_way"]);
 			undo_redo->add_undo_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangle_%d/one_way_margin", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), rectangle_dict["one_way_margin"]);
 		}
@@ -3239,7 +3245,7 @@ void TileDataCollisionEditor::_setup_undo_redo_action(TileSetAtlasSource *p_tile
 		undo_redo->add_do_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangles_count", coords.x, coords.y, E.key.alternative_tile, physics_layer), new_rectangle_array.size());
 		for (int i = 0; i < new_rectangle_array.size(); i++) {
 			Dictionary rectangle_dict = new_rectangle_array[i];
-			undo_redo->add_do_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangle_%d/points", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), rectangle_dict["points"]);
+			undo_redo->add_do_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangle_%d/data", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), rectangle_dict["data"]);
 			undo_redo->add_do_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangle_%d/one_way", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), rectangle_dict["one_way"]);
 			undo_redo->add_do_property(p_tile_set_atlas_source, vformat("%d:%d/%d/physics_layer_%d/rectangle_%d/one_way_margin", coords.x, coords.y, E.key.alternative_tile, physics_layer, i), rectangle_dict["one_way_margin"]);
 		}

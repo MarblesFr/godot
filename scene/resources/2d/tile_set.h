@@ -983,7 +983,7 @@ public:
 	// Polygons.
 	static PackedVector2Array get_transformed_vertices(const PackedVector2Array &p_vertices, bool p_flip_h, bool p_flip_v, bool p_transpose);
 	static Vector2i get_transformed_size(const Vector2i &p_size, bool p_transpose);
-	static Vector2i get_transformed_offset(const Vector2i &p_offset, bool p_flip_h, bool p_flip_v, bool p_transpose);
+	static Vector2i get_transformed_offset(const Vector2i &p_offset, const Vector2i &p_size, bool p_flip_h, bool p_flip_v, bool p_transpose);
 };
 
 VARIANT_ENUM_CAST(TileSet::CellNeighbor);

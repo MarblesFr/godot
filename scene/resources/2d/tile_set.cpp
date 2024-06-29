@@ -6345,7 +6345,7 @@ Ref<RectangleShape2D> TileData::get_collision_rectangle_shape(int p_layer_id, in
 		Ref<RectangleShape2D> transformed_rectangle;
 		transformed_rectangle.instantiate();
 		transformed_rectangle->set_size(get_transformed_size(shapes_data.shape->get_size(), p_transpose));
-		transformed_rectangle->set_offset(get_transformed_offset(shapes_data.shape->get_offset(), p_flip_h, p_flip_v, p_transpose));
+		transformed_rectangle->set_offset(get_transformed_offset(shapes_data.shape->get_offset(), shapes_data.shape->get_size(), p_flip_h, p_flip_v, p_transpose));
 		shapes_data.transformed_shape[key] = transformed_rectangle;
 		return shapes_data.transformed_shape[key];
 	} else {
@@ -6546,12 +6546,18 @@ Vector2i TileData::get_transformed_size(const Vector2i &p_size, bool p_transpose
 	return new_size;
 }
 
-Vector2i TileData::get_transformed_offset(const Vector2i &p_offset, bool p_flip_h, bool p_flip_v, bool p_transpose) {
-	Vector2i new_offset;
+Vector2i TileData::get_transformed_offset(const Vector2i &p_offset, const Vector2i &p_size, bool p_flip_h, bool p_flip_v, bool p_transpose) {
+	Vector2 new_offset = p_offset;
+	if (p_size.x % 2 == 1) {
+		new_offset.x += 0.5;
+	}
+	if (p_size.y % 2 == 1) {
+		new_offset.y += 0.5;
+	}
 	if (p_transpose) {
-		new_offset = Vector2(p_offset.y, p_offset.x);
+		new_offset = Vector2(new_offset.y, new_offset.x);
 	} else {
-		new_offset = p_offset;
+		new_offset = new_offset;
 	}
 
 	if (p_flip_h) {
@@ -6560,7 +6566,7 @@ Vector2i TileData::get_transformed_offset(const Vector2i &p_offset, bool p_flip_
 	if (p_flip_v) {
 		new_offset.y *= -1;
 	}
-	return new_offset;
+	return new_offset.floor();
 }
 
 bool TileData::_set(const StringName &p_name, const Variant &p_value) {
