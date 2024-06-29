@@ -35,51 +35,13 @@ SolidBody2D::SolidBody2D() :
 }
 
 bool SolidBody2D::move_h_exact(int32_t amount, const Callable &collision_callback) {
-	Vector2i target_position = get_position() + Vector2i(amount, 0);
-	int move_dir = SIGN(amount);
-	Vector2i move_dir_vector = Vector2i(move_dir, 0);
-	int amount_moved = 0;
-	PhysicsServer2D::CollisionResult r_result;
-	while (amount != 0)
-	{
-		bool colliding = PhysicsServer2D::get_singleton()->body_collides_at(get_rid(), get_global_transform_i(), move_dir_vector, &r_result);
-		if (colliding)
-		{
-			position_delta.x = 0;
-			if (collision_callback.is_valid())
-			{
-				collision_callback.call(move_dir_vector, Vector2i(0, amount_moved), target_position, r_result.collider);
-			}
-			return true;
-		}
-		amount_moved += move_dir;
-		amount -= move_dir;
-		translate(move_dir_vector);
-	}
+	List<RID> bodies;
+	PhysicsServer2D::get_singleton()->body_get_riding_bodies(get_rid(), &bodies);
 	return false;
 }
 
 bool SolidBody2D::move_v_exact(int32_t amount, const Callable &collision_callback) {
-	Vector2i target_position = get_position() + Vector2i(0, amount);
-	int move_dir = SIGN(amount);
-	Vector2i move_dir_vector = Vector2i(0, move_dir);
-	int amount_moved = 0;
-	PhysicsServer2D::CollisionResult r_result;
-	while (amount != 0)
-	{
-		bool colliding = PhysicsServer2D::get_singleton()->body_collides_at(get_rid(), get_global_transform_i(), move_dir_vector, &r_result);
-		if (colliding)
-		{
-			position_delta.x = 0;
-			if (collision_callback.is_valid())
-			{
-				collision_callback.call(move_dir_vector, Vector2i(0, amount_moved), target_position, r_result.collider);
-			}
-			return true;
-		}
-		amount_moved += move_dir;
-		amount -= move_dir;
-		translate(move_dir_vector);
-	}
+	List<RID> bodies;
+	PhysicsServer2D::get_singleton()->body_get_riding_bodies(get_rid(), &bodies);
 	return false;
 }

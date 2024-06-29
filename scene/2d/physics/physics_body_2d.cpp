@@ -33,6 +33,8 @@
 void PhysicsBody2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("move_h", "amount", "collision_callback"), &PhysicsBody2D::move_h, DEFVAL(0.0f), DEFVAL(Callable()));
 	ClassDB::bind_method(D_METHOD("move_v", "amount", "collision_callback"), &PhysicsBody2D::move_v, DEFVAL(0.0f), DEFVAL(Callable()));
+	ClassDB::bind_method(D_METHOD("move_h_exact", "amount", "collision_callback"), &PhysicsBody2D::move_h_exact, DEFVAL(0), DEFVAL(Callable()));
+	ClassDB::bind_method(D_METHOD("move_v_exact", "amount", "collision_callback"), &PhysicsBody2D::move_v_exact, DEFVAL(0), DEFVAL(Callable()));
 	ClassDB::bind_method(D_METHOD("test_move", "from", "motion", "collision", "recovery_as_collision"), &PhysicsBody2D::test_move, DEFVAL(Variant()), DEFVAL(false));
 	ClassDB::bind_method(D_METHOD("get_gravity"), &PhysicsBody2D::get_gravity);
 

@@ -367,6 +367,17 @@ public:
 		}
 	}
 
+	GDVIRTUAL1RC(TypedArray<RID>, _body_get_riding_bodies, RID)
+
+	void body_get_riding_bodies(RID p_body, List<RID> *p_bodies) override {
+		p_bodies->clear();
+		TypedArray<RID> ret;
+		GDVIRTUAL_REQUIRED_CALL(_body_get_riding_bodies, p_body, ret);
+		for (int i = 0; i < ret.size(); i++) {
+			p_bodies->push_back(ret[i]);
+		}
+	}
+
 	EXBIND2(body_set_max_contacts_reported, RID, int)
 	EXBIND1RC(int, body_get_max_contacts_reported, RID)
 
@@ -378,6 +389,8 @@ public:
 
 	EXBIND2(body_set_state_sync_callback, RID, const Callable &)
 	EXBIND3(body_set_force_integration_callback, RID, const Callable &, const Variant &)
+
+	EXBIND2(body_set_is_riding, RID, const Callable &)
 
 	virtual bool body_collide_shape(RID p_body, int p_body_shape, RID p_shape, const Transform2Di &p_shape_xform, const Vector2i &p_motion, Vector2i *r_results, int p_result_max, int &r_result_count) override {
 		bool ret = false;

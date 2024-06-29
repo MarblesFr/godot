@@ -30,8 +30,16 @@
 
 #include "character_body_2d.h"
 
+void CharacterBody2D::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("on_ground"), &CharacterBody2D::on_ground);
+
+	GDVIRTUAL_BIND(_is_riding, "solid");
+	GDVIRTUAL_BIND(_squish);
+}
+
 CharacterBody2D::CharacterBody2D() :
 		PhysicsBody2D(PhysicsServer2D::BODY_MODE_KINEMATIC, PhysicsServer2D::COLLIDER_TYPE_ACTOR) {
+	PhysicsServer2D::get_singleton()->body_set_is_riding(get_rid(), callable_mp(this, &CharacterBody2D::_is_riding));
 }
 
 bool CharacterBody2D::move_h_exact(int32_t amount, const Callable &collision_callback) {
@@ -82,4 +90,18 @@ bool CharacterBody2D::move_v_exact(int32_t amount, const Callable &collision_cal
 		translate(move_dir_vector);
 	}
 	return false;
+}
+
+bool CharacterBody2D::on_ground() {
+	return PhysicsServer2D::get_singleton()->body_collides_at(get_rid(), get_global_transform_i(), Vector2i(0, 1));
+}
+
+bool CharacterBody2D::_is_riding(const RID &p_solid) {
+	bool result = false;
+	GDVIRTUAL_CALL(_is_riding, p_solid, result);
+	return result;
+}
+
+void CharacterBody2D::_squish() {
+	GDVIRTUAL_CALL(_squish);
 }

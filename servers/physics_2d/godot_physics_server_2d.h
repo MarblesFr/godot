@@ -237,6 +237,8 @@ public:
 	virtual void body_remove_collision_exception(RID p_body, RID p_body_b) override;
 	virtual void body_get_collision_exceptions(RID p_body, List<RID> *p_exceptions) override;
 
+	virtual void body_get_riding_bodies(RID p_body, List<RID> *p_bodies) override;
+
 	virtual void body_set_contacts_reported_depth_threshold(RID p_body, real_t p_threshold) override;
 	virtual real_t body_get_contacts_reported_depth_threshold(RID p_body) const override;
 
@@ -248,6 +250,8 @@ public:
 
 	virtual void body_set_state_sync_callback(RID p_body, const Callable &p_callable) override;
 	virtual void body_set_force_integration_callback(RID p_body, const Callable &p_callable, const Variant &p_udata = Variant()) override;
+
+	virtual void body_set_is_riding(RID p_body, const Callable &p_callable) override;
 
 	virtual bool body_collide_shape(RID p_body, int p_body_shape, RID p_shape, const Transform2Di &p_shape_xform, const Vector2i &p_motion, Vector2i *r_results, int p_result_max, int &r_result_count) override;
 

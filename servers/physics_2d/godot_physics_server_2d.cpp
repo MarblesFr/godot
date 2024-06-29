@@ -916,6 +916,24 @@ void GodotPhysicsServer2D::body_get_collision_exceptions(RID p_body, List<RID> *
 	}
 };
 
+void GodotPhysicsServer2D::body_get_riding_bodies(RID p_body, List<RID> *p_bodies) {
+	p_bodies->clear();
+	List<RID> bodies;
+	body_owner.get_owned_list(&bodies);
+	ERR_FAIL_NULL(&bodies);
+
+	for (int i = 0; i < bodies.size(); i++) {
+		if (bodies.get(i) == p_body) {
+			continue;
+		}
+		GodotBody2D *other_body = body_owner.get_or_null(bodies.get(i));
+		ERR_FAIL_NULL(other_body);
+		if (other_body->is_riding(p_body)) {
+			p_bodies->push_back(bodies.get(i));
+		}
+	}
+};
+
 void GodotPhysicsServer2D::body_set_contacts_reported_depth_threshold(RID p_body, real_t p_threshold) {
 	GodotBody2D *body = body_owner.get_or_null(p_body);
 	ERR_FAIL_NULL(body);
@@ -962,6 +980,12 @@ void GodotPhysicsServer2D::body_set_force_integration_callback(RID p_body, const
 	GodotBody2D *body = body_owner.get_or_null(p_body);
 	ERR_FAIL_NULL(body);
 	body->set_force_integration_callback(p_callable, p_udata);
+}
+
+void GodotPhysicsServer2D::body_set_is_riding(RID p_body, const Callable &p_callable) {
+	GodotBody2D *body = body_owner.get_or_null(p_body);
+	ERR_FAIL_NULL(body);
+	body->set_is_riding(p_callable);
 }
 
 bool GodotPhysicsServer2D::body_collide_shape(RID p_body, int p_body_shape, RID p_shape, const Transform2Di &p_shape_xform, const Vector2i &p_motion, Vector2i *r_results, int p_result_max, int &r_result_count) {

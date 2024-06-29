@@ -742,6 +742,18 @@ void GodotBody2D::set_force_integration_callback(const Callable &p_callable, con
 	}
 }
 
+
+void GodotBody2D::set_is_riding(const Callable &p_callable) {
+	is_riding_callable = p_callable;
+}
+
+bool GodotBody2D::is_riding(const RID &p_rid) {
+	if (is_riding_callable.is_valid()) {
+		return is_riding_callable.call(p_rid);
+	}
+	return false;
+}
+
 GodotPhysicsDirectBodyState2D *GodotBody2D::get_direct_state() {
 	if (!direct_state) {
 		direct_state = memnew(GodotPhysicsDirectBodyState2D);

@@ -469,6 +469,8 @@ public:
 	virtual void body_remove_collision_exception(RID p_body, RID p_body_b) = 0;
 	virtual void body_get_collision_exceptions(RID p_body, List<RID> *p_exceptions) = 0;
 
+	virtual void body_get_riding_bodies(RID p_body, List<RID> *p_bodies) = 0;
+
 	virtual void body_set_max_contacts_reported(RID p_body, int p_contacts) = 0;
 	virtual int body_get_max_contacts_reported(RID p_body) const = 0;
 
@@ -481,6 +483,8 @@ public:
 
 	virtual void body_set_state_sync_callback(RID p_body, const Callable &p_callable) = 0;
 	virtual void body_set_force_integration_callback(RID p_body, const Callable &p_callable, const Variant &p_udata = Variant()) = 0;
+
+	virtual void body_set_is_riding(RID p_body, const Callable &p_callable) = 0;
 
 	virtual bool body_collide_shape(RID p_body, int p_body_shape, RID p_shape, const Transform2Di &p_shape_xform, const Vector2i &p_motion, Vector2i *r_results, int p_result_max, int &r_result_count) = 0;
 

@@ -236,6 +236,8 @@ public:
 	FUNC2(body_remove_collision_exception, RID, RID);
 	FUNC2S(body_get_collision_exceptions, RID, List<RID> *);
 
+	FUNC2S(body_get_riding_bodies, RID, List<RID> *);
+
 	FUNC2(body_set_max_contacts_reported, RID, int);
 	FUNC1RC(int, body_get_max_contacts_reported, RID);
 
@@ -247,6 +249,8 @@ public:
 
 	FUNC2(body_set_state_sync_callback, RID, const Callable &);
 	FUNC3(body_set_force_integration_callback, RID, const Callable &, const Variant &);
+
+	FUNC2(body_set_is_riding, RID, const Callable &);
 
 	bool body_collide_shape(RID p_body, int p_body_shape, RID p_shape, const Transform2Di &p_shape_xform, const Vector2i &p_motion, Vector2i *r_results, int p_result_max, int &r_result_count) override {
 		return physics_server_2d->body_collide_shape(p_body, p_body_shape, p_shape, p_shape_xform, p_motion, r_results, p_result_max, r_result_count);

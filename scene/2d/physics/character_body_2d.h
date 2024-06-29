@@ -33,13 +33,25 @@
 
 #include "scene/2d/physics/kinematic_collision_2d.h"
 #include "scene/2d/physics/physics_body_2d.h"
+#include "scene/2d/physics/solid_body_2d.h"
 
 class CharacterBody2D : public PhysicsBody2D {
 	GDCLASS(CharacterBody2D, PhysicsBody2D);
 
+protected:
+	static void _bind_methods();
+
 public:
 	bool move_h_exact(int32_t move_h, const Callable &collisionCallback) override;
 	bool move_v_exact(int32_t move_v, const Callable &collisionCallback) override;
+
+	bool on_ground();
+
+	bool _is_riding(const RID &p_solid);
+	void _squish();
+
+	GDVIRTUAL1R(bool, _is_riding, RID)
+	GDVIRTUAL0(_squish)
 
 	CharacterBody2D();
 };
