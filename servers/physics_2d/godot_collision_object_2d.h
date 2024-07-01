@@ -77,7 +77,7 @@ private:
 	void _update_shapes();
 
 protected:
-	void _update_shapes_with_motion(const Vector2 &p_motion);
+	void _update_shapes_with_motion(const Vector2i &p_motion);
 	void _unregister_shapes();
 
 	_FORCE_INLINE_ void _set_transform(const Transform2Di &p_transform, bool p_update_shapes = true) {

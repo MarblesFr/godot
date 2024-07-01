@@ -181,7 +181,7 @@ void GodotCollisionObject2D::_update_shapes() {
 	}
 }
 
-void GodotCollisionObject2D::_update_shapes_with_motion(const Vector2 &p_motion) {
+void GodotCollisionObject2D::_update_shapes_with_motion(const Vector2i &p_motion) {
 	if (!space) {
 		return;
 	}
@@ -196,7 +196,7 @@ void GodotCollisionObject2D::_update_shapes_with_motion(const Vector2 &p_motion)
 		Rect2i shape_aabb = s.shape->get_aabb();
 		Transform2Di xform = transform * s.xform;
 		shape_aabb = xform.xform(shape_aabb);
-		shape_aabb = shape_aabb.merge(Rect2i(shape_aabb.position + p_motion, shape_aabb.size)); //use motion
+		shape_aabb.position += p_motion;
 		s.aabb_cache = shape_aabb;
 
 		if (s.bpid == 0) {

@@ -561,13 +561,13 @@ void GodotBody2D::integrate_forces(real_t p_step) {
 	prev_linear_velocity = linear_velocity;
 	prev_angular_velocity = angular_velocity;
 
-	Vector2 motion;
+	Vector2i motion;
 	bool do_motion = false;
 
 	if (mode == PhysicsServer2D::BODY_MODE_KINEMATIC) {
 		//compute motion, angular and etc. velocities from prev transform
 		motion = new_transform.get_origin() - get_transform().get_origin();
-		linear_velocity = constant_linear_velocity + motion / p_step;
+		linear_velocity = constant_linear_velocity + (Vector2)motion / p_step;
 
 		angular_velocity = constant_angular_velocity;
 
