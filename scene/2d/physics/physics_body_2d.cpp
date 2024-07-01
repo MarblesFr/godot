@@ -41,6 +41,14 @@ void PhysicsBody2D::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("get_collision_exceptions"), &PhysicsBody2D::get_collision_exceptions);
 	ClassDB::bind_method(D_METHOD("add_collision_exception_with", "body"), &PhysicsBody2D::add_collision_exception_with);
 	ClassDB::bind_method(D_METHOD("remove_collision_exception_with", "body"), &PhysicsBody2D::remove_collision_exception_with);
+
+	ClassDB::bind_method(D_METHOD("set_position_delta", "value"), &PhysicsBody2D::set_position_delta);
+	ClassDB::bind_method(D_METHOD("get_position_delta"), &PhysicsBody2D::get_position_delta);
+
+	ADD_PROPERTY(PropertyInfo(Variant::VECTOR2, "position_delta", PROPERTY_HINT_LAYERS_2D_PHYSICS), "set_position_delta", "get_position_delta");
+
+	GDVIRTUAL_BIND(_move_h_exact, "amount", "collision_callback");
+	GDVIRTUAL_BIND(_move_v_exact, "amount", "collision_callback");
 }
 
 PhysicsBody2D::PhysicsBody2D(PhysicsServer2D::BodyMode p_mode, PhysicsServer2D::ColliderType p_type) :
@@ -50,24 +58,24 @@ PhysicsBody2D::PhysicsBody2D(PhysicsServer2D::BodyMode p_mode, PhysicsServer2D::
 	set_pickable(false);
 }
 
-bool PhysicsBody2D::move_h(real_t amount, const Callable &collision_callback) {
-	position_delta.x += amount;
+bool PhysicsBody2D::move_h(real_t p_amount, const Callable &p_callback) {
+	position_delta.x += p_amount;
 	int whole_move = round_half_to_even(position_delta.x);
 	if (whole_move == 0) {
 		return false;
 	}
 	position_delta.x -= whole_move;
-	return move_h_exact(whole_move, collision_callback);
+	return _move_h_exact(whole_move, p_callback);
 }
 
-bool PhysicsBody2D::move_v(real_t amount, const Callable &collision_callback) {
-	position_delta.y += amount;
+bool PhysicsBody2D::move_v(real_t p_amount, const Callable &p_callback) {
+	position_delta.y += p_amount;
 	int whole_move = round_half_to_even(position_delta.y);
 	if (whole_move == 0) {
 		return false;
 	}
 	position_delta.y -= whole_move;
-	return move_v_exact(whole_move, collision_callback);
+	return _move_v_exact(whole_move, p_callback);
 }
 
 
@@ -93,6 +101,14 @@ Vector2i PhysicsBody2D::get_gravity() const {
 	PhysicsDirectBodyState2D *state = PhysicsServer2D::get_singleton()->body_get_direct_state(get_rid());
 	ERR_FAIL_NULL_V(state, Vector2i());
 	return state->get_total_gravity();
+}
+
+void PhysicsBody2D::set_position_delta(Vector2 p_value){
+	position_delta = p_value;
+}
+
+Vector2 PhysicsBody2D::get_position_delta() const {
+	return position_delta;
 }
 
 TypedArray<PhysicsBody2D> PhysicsBody2D::get_collision_exceptions() {
@@ -122,20 +138,18 @@ void PhysicsBody2D::remove_collision_exception_with(Node *p_node) {
 	PhysicsServer2D::get_singleton()->body_remove_collision_exception(get_rid(), physics_body->get_rid());
 }
 
-int PhysicsBody2D::round_half_to_even(real_t value)
-{
-	const real_t r = round(value);
-	const real_t d = r - value;
-
-	if ((d != 0.5f) && (d != -0.5f))
-	{
-		return r;
+bool PhysicsBody2D::_move_h_exact(int32_t p_amount, const Callable &p_callback) {
+	bool result = false;
+	if (GDVIRTUAL_CALL(_move_h_exact, p_amount, p_callback, result)) {
+		return result;
 	}
+	return move_h_exact(p_amount, p_callback);
+}
 
-	if (fmod(r, 2.0f) == 0.0f)
-	{
-		return r;
+bool PhysicsBody2D::_move_v_exact(int32_t p_amount, const Callable &p_callback) {
+	bool result = false;
+	if (GDVIRTUAL_CALL(_move_v_exact, p_amount, p_callback, result)) {
+		return result;
 	}
-
-	return (int)(value - d);
+	return move_v_exact(p_amount, p_callback);
 }

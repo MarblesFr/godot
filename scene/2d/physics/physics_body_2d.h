@@ -46,14 +46,17 @@ protected:
 	Vector2 position_delta;
 
 public:
-	bool move_h(real_t move_h, const Callable &collisionCallback = Callable());
-	bool move_v(real_t move_v, const Callable &collisionCallback = Callable());
-	virtual bool move_h_exact(int32_t move_h, const Callable &collisionCallback) {
-		translate(Vector2i(move_h, 0));
+	void set_position_delta(Vector2 p_value);
+	Vector2 get_position_delta() const;
+
+	bool move_h(real_t p_amount, const Callable &p_callback = Callable());
+	bool move_v(real_t p_amount, const Callable &p_callback = Callable());
+	virtual bool move_h_exact(int32_t p_amount, const Callable &p_callback) {
+		translate(Vector2i(p_amount, 0));
 		return false;
 	};
-	virtual bool move_v_exact(int32_t move_v, const Callable &collisionCallback) {
-		translate(Vector2i(0, move_v));
+	virtual bool move_v_exact(int32_t p_amount, const Callable &p_callback) {
+		translate(Vector2i(0, p_amount));
 		return false;
 	};
 	bool test_move(const Transform2Di &p_from, const Vector2i &p_motion, const Ref<KinematicCollision2D> &r_collision = Ref<KinematicCollision2D>(), bool p_recovery_as_collision = false);
@@ -62,7 +65,30 @@ public:
 	TypedArray<PhysicsBody2D> get_collision_exceptions();
 	void add_collision_exception_with(Node *p_node); //must be physicsbody
 	void remove_collision_exception_with(Node *p_node);
-	int round_half_to_even(real_t x);
+
+	bool _move_h_exact(int32_t p_amount, const Callable &p_callback);
+	bool _move_v_exact(int32_t p_amount, const Callable &p_callback);
+
+	GDVIRTUAL2R(bool, _move_h_exact, int32_t, Callable)
+	GDVIRTUAL2R(bool, _move_v_exact, int32_t, Callable)
 };
+
+static int round_half_to_even(real_t value)
+{
+	const real_t r = round(value);
+	const real_t d = r - value;
+
+	if ((d != 0.5f) && (d != -0.5f))
+	{
+		return r;
+	}
+
+	if (fmod(r, 2.0f) == 0.0f)
+	{
+		return r;
+	}
+
+	return (int)(value - d);
+}
 
 #endif // PHYSICS_BODY_2D_H

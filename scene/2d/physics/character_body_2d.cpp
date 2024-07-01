@@ -43,73 +43,65 @@ CharacterBody2D::CharacterBody2D() :
 	PhysicsServer2D::get_singleton()->body_set_is_riding(get_rid(), callable_mp(this, &CharacterBody2D::_is_riding));
 }
 
-bool CharacterBody2D::move_h_exact(int32_t amount, const Callable &collision_callback) {
-	int move_dir = SIGN(amount);
+bool CharacterBody2D::move_h_exact(int32_t p_amount, const Callable &p_callback) {
+	int move_dir = SIGN(p_amount);
 	Vector2i move_dir_vector = Vector2i(move_dir, 0);
 	int amount_moved = 0;
 	PhysicsServer2D::CollisionResult r_result;
-	while (amount != 0)
+	while (p_amount != 0)
 	{
 		bool colliding = collides_at(move_dir_vector, &r_result);
 		if (colliding)
 		{
-			if (collision_callback.is_valid())
+			position_delta.x = 0;
+			if (p_callback.is_valid())
 			{
-				if(collision_callback.call(move_dir_vector, amount_moved, amount, r_result.collider)) {
-					position_delta.x = 0;
-				}
-			}
-			else {
-				position_delta.x = 0;
+				p_callback.call(move_dir_vector, amount_moved, p_amount, r_result.collider);
 			}
 			return true;
 		}
 		amount_moved += move_dir;
-		amount -= move_dir;
+		p_amount -= move_dir;
 		translate(move_dir_vector);
 	}
 	return false;
 }
 
-bool CharacterBody2D::move_v_exact(int32_t amount, const Callable &collision_callback) {
-	int move_dir = SIGN(amount);
+bool CharacterBody2D::move_v_exact(int32_t p_amount, const Callable &p_callback) {
+	int move_dir = SIGN(p_amount);
 	Vector2i move_dir_vector = Vector2i(0, move_dir);
 	int amount_moved = 0;
 	PhysicsServer2D::CollisionResult r_result;
-	while (amount != 0)
+	while (p_amount != 0)
 	{
 		bool colliding = collides_at(move_dir_vector, &r_result);
 		if (colliding)
 		{
-			if (collision_callback.is_valid())
+			position_delta.y = 0;
+			if (p_callback.is_valid())
 			{
-				if(collision_callback.call(move_dir_vector, amount_moved, amount, r_result.collider)) {
-					position_delta.y = 0;
-				}
-			}
-			else {
-				position_delta.y = 0;
+				p_callback.call(move_dir_vector, amount_moved, p_amount, r_result.collider);
 			}
 			return true;
 		}
 		amount_moved += move_dir;
-		amount -= move_dir;
+		p_amount -= move_dir;
 		translate(move_dir_vector);
 	}
 	return false;
 }
 
-bool CharacterBody2D::collides_at(const Vector2i &delta, PhysicsServer2D::CollisionResult *r_result) {
-	return PhysicsServer2D::get_singleton()->body_collides_at(get_rid(), get_global_transform_i(), delta, r_result);
+bool CharacterBody2D::collides_at(const Vector2i &p_delta, PhysicsServer2D::CollisionResult *p_result) {
+	return PhysicsServer2D::get_singleton()->body_collides_at(get_rid(), get_global_transform_i(), p_delta, p_result);
 }
 
-bool CharacterBody2D::_collides_at(const Vector2i &delta, const Ref<PhysicsCollisionResult2D> &p_result) {
+bool CharacterBody2D::_collides_at(const Vector2i &p_delta, const Ref<PhysicsCollisionResult2D> &p_result) {
 	PhysicsServer2D::CollisionResult *result_ptr = nullptr;
 	if (p_result.is_valid()) {
 		result_ptr = p_result->get_result_ptr();
 	}
 
-	return collides_at(delta, result_ptr);
+	return collides_at(p_delta, result_ptr);
 }
 
 bool CharacterBody2D::on_ground() {

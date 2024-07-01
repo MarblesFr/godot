@@ -42,11 +42,11 @@ protected:
 	static void _bind_methods();
 
 public:
-	bool move_h_exact(int32_t move_h, const Callable &collisionCallback) override;
-	bool move_v_exact(int32_t move_v, const Callable &collisionCallback) override;
+	bool move_h_exact(int32_t p_amount, const Callable &p_callback) override;
+	bool move_v_exact(int32_t p_amount, const Callable &p_callback) override;
 
-	bool collides_at(const Vector2i &delta, PhysicsServer2D::CollisionResult *r_result = nullptr);
-	virtual bool _collides_at(const Vector2i &delta, const Ref<PhysicsCollisionResult2D> &r_result = Ref<PhysicsCollisionResult2D>());
+	bool collides_at(const Vector2i &p_delta, PhysicsServer2D::CollisionResult *p_result = nullptr);
+	virtual bool _collides_at(const Vector2i &p_delta, const Ref<PhysicsCollisionResult2D> &r_result = Ref<PhysicsCollisionResult2D>());
 
 	bool on_ground();
 
