@@ -34,6 +34,7 @@
 #include "core/math/math_funcs.h"
 #include "core/math/rect2.h"
 #include "core/math/vector2.h"
+#include "core/math/transform_2d_i.h"
 #include "core/templates/vector.h"
 
 class String;
@@ -143,6 +144,8 @@ struct [[nodiscard]] Transform2D {
 	Transform2D(real_t p_rot, const Vector2 &p_pos);
 
 	Transform2D(real_t p_rot, const Size2 &p_scale, real_t p_skew, const Vector2 &p_pos);
+
+	Transform2D(const Transform2Di &p_transform2Di);
 
 	Transform2D() {
 		columns[0][0] = 1.0;

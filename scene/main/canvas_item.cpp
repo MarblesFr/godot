@@ -172,7 +172,7 @@ Transform2Di CanvasItem::get_transform_i() const {
 
 	if (_is_transform_i_invalid()) {
 		// This code can enter multiple times from threads if dirty, this is expected.
-		transform_i = transform2di_from_transform2d(get_transform());
+		transform_i = get_transform();
 		_set_transform_i_invalid(false);
 	}
 

@@ -335,7 +335,7 @@ TEST_CASE("[SceneTree][ArrayMesh] Get/Set mesh metadata and actions") {
 		CHECK(mesh2->get_surface_count() == 1);
 		CHECK(mesh2->surface_get_primitive_type(0) == Mesh::PRIMITIVE_TRIANGLES);
 		CHECK((mesh2->surface_get_format(0) & surface_data.format) != 0);
-		CHECK(mesh2->get_aabb().is_equal_approx(surface_data.aabb));
+		CHECK(mesh2->get_aabb().is_equal(surface_data.aabb));
 	}
 }
 

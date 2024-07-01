@@ -50,9 +50,9 @@ PhysicsBody2D::PhysicsBody2D(PhysicsServer2D::BodyMode p_mode, PhysicsServer2D::
 	set_pickable(false);
 }
 
-bool PhysicsBody2D::move_h(float_t amount, const Callable &collision_callback) {
+bool PhysicsBody2D::move_h(real_t amount, const Callable &collision_callback) {
 	position_delta.x += amount;
-	int whole_move = Math::round(position_delta.x);
+	int whole_move = round_half_to_even(position_delta.x);
 	if (whole_move == 0) {
 		return false;
 	}
@@ -60,9 +60,9 @@ bool PhysicsBody2D::move_h(float_t amount, const Callable &collision_callback) {
 	return move_h_exact(whole_move, collision_callback);
 }
 
-bool PhysicsBody2D::move_v(float_t amount, const Callable &collision_callback) {
+bool PhysicsBody2D::move_v(real_t amount, const Callable &collision_callback) {
 	position_delta.y += amount;
-	int whole_move = Math::round(position_delta.y);
+	int whole_move = round_half_to_even(position_delta.y);
 	if (whole_move == 0) {
 		return false;
 	}
@@ -120,4 +120,22 @@ void PhysicsBody2D::remove_collision_exception_with(Node *p_node) {
 	PhysicsBody2D *physics_body = Object::cast_to<PhysicsBody2D>(p_node);
 	ERR_FAIL_NULL_MSG(physics_body, "Collision exception only works between two nodes that inherit from PhysicsBody2D.");
 	PhysicsServer2D::get_singleton()->body_remove_collision_exception(get_rid(), physics_body->get_rid());
+}
+
+int PhysicsBody2D::round_half_to_even(real_t value)
+{
+	const real_t r = round(value);
+	const real_t d = r - value;
+
+	if ((d != 0.5f) && (d != -0.5f))
+	{
+		return r;
+	}
+
+	if (fmod(r, 2.0f) == 0.0f)
+	{
+		return r;
+	}
+
+	return (int)(value - d);
 }

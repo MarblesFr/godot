@@ -263,7 +263,7 @@ public:
 		return physics_server_2d->body_test_motion(p_body, p_parameters, r_result);
 	}
 
-	bool body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, CollisionResult *r_result = nullptr, const int16_t collision_type_filter = DEFAULT_COLLIDER_FILTER) override {
+	bool body_collides_at(RID p_body, const Transform2Di &from, const Vector2i &delta, CollisionResult *r_result = nullptr, const int16_t collision_type_filter = DEFAULT_COLLIDER_FILTER) override {
 		ERR_FAIL_COND_V(!Thread::is_main_thread(), false);
 		return physics_server_2d->body_collides_at(p_body, from, delta, r_result, collision_type_filter);
 	}

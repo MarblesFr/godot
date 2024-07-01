@@ -211,7 +211,7 @@ class PhysicsServer2D : public Object {
 	static PhysicsServer2D *singleton;
 
 	virtual bool _body_test_motion(RID p_body, const Ref<PhysicsTestMotionParameters2D> &p_parameters, const Ref<PhysicsTestMotionResult2D> &p_result = Ref<PhysicsTestMotionResult2D>());
-	virtual bool _body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, const Ref<PhysicsCollisionResult2D> &r_result = Ref<PhysicsCollisionResult2D>(), const int16_t collision_type_filter = DEFAULT_COLLIDER_FILTER);
+	virtual bool _body_collides_at(RID p_body, const Transform2Di &from, const Vector2i &delta, const Ref<PhysicsCollisionResult2D> &r_result = Ref<PhysicsCollisionResult2D>(), const int16_t &collision_type_filter = DEFAULT_COLLIDER_FILTER);
 
 protected:
 	static void _bind_methods();
@@ -542,7 +542,7 @@ public:
 	};
 
 	virtual bool body_test_motion(RID p_body, const MotionParameters &p_parameters, MotionResult *r_result = nullptr) = 0;
-	virtual bool body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, CollisionResult *r_result = nullptr, const int16_t collision_type_filter = DEFAULT_COLLIDER_FILTER) = 0;
+	virtual bool body_collides_at(RID p_body, const Transform2Di &from, const Vector2i &delta, CollisionResult *r_result = nullptr, const int16_t collision_type_filter = DEFAULT_COLLIDER_FILTER) = 0;
 
 	/* JOINT API */
 

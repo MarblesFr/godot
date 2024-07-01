@@ -909,7 +909,7 @@ void TileMapLayer::_physics_draw_cell_debug(const RID &p_canvas_item, const Vect
 	for (RID body : r_cell_data.bodies) {
 		if (body.is_valid()) {
 			Transform2Di body_to_quadrant = global_to_quadrant * Transform2Di(ps->body_get_state(body, PhysicsServer2D::BODY_STATE_TRANSFORM));
-			rs->canvas_item_add_set_transform(p_canvas_item, transform2d_from_transform2di(body_to_quadrant));
+			rs->canvas_item_add_set_transform(p_canvas_item, body_to_quadrant);
 			for (int shape_index = 0; shape_index < ps->body_get_shape_count(body); shape_index++) {
 				const RID &shape = ps->body_get_shape(body, shape_index);
 				const PhysicsServer2D::ShapeType &type = ps->shape_get_type(shape);

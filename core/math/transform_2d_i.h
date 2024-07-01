@@ -132,6 +132,8 @@ struct [[nodiscard]] Transform2Di {
 
 	Transform2Di(const Size2i &p_scale, const Vector2i &p_pos);
 
+	Transform2Di(const Transform2D &p_transform2D);
+
 	Transform2Di() {
 		columns[0][0] = 1;
 		columns[1][1] = 1;
@@ -219,28 +221,6 @@ Vector<Vector2i> Transform2Di::xform_inv(const Vector<Vector2i> &p_array) const 
 		w[i] = xform_inv(r[i]);
 	}
 	return array;
-}
-
-static Transform2Di transform2di_from_transform2d(const Transform2D &transform2D) {
-	Transform2Di transform2Di = Transform2Di();
-	transform2Di.columns[0][0] = (int)Math::round(transform2D.columns[0][0]);
-	transform2Di.columns[0][1] = (int)Math::round(transform2D.columns[0][1]);
-	transform2Di.columns[1][0] = (int)Math::round(transform2D.columns[1][0]);
-	transform2Di.columns[1][1] = (int)Math::round(transform2D.columns[1][1]);
-	transform2Di.columns[2][0] = (int)Math::round(transform2D.columns[2][0]);
-	transform2Di.columns[2][1] = (int)Math::round(transform2D.columns[2][1]);
-	return transform2Di;
-}
-
-static Transform2D transform2d_from_transform2di(const Transform2Di &transform2Di) {
-	Transform2D transform2D = Transform2D();
-	transform2D.columns[0][0] = transform2Di.columns[0][0];
-	transform2D.columns[0][1] = transform2Di.columns[0][1];
-	transform2D.columns[1][0] = transform2Di.columns[1][0];
-	transform2D.columns[1][1] = transform2Di.columns[1][1];
-	transform2D.columns[2][0] = transform2Di.columns[2][0];
-	transform2D.columns[2][1] = transform2Di.columns[2][1];
-	return transform2D;
 }
 
 #endif // TRANSFORM_2D_I_H

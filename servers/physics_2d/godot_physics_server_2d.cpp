@@ -1013,7 +1013,7 @@ bool GodotPhysicsServer2D::body_test_motion(RID p_body, const MotionParameters &
 	return body->get_space()->test_body_motion(body, p_parameters, r_result);
 }
 
-bool GodotPhysicsServer2D::body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, CollisionResult *r_result, const int16_t collision_type_filter) {
+bool GodotPhysicsServer2D::body_collides_at(RID p_body, const Transform2Di &from, const Vector2i &delta, CollisionResult *r_result, const int16_t collision_type_filter) {
 	GodotBody2D *body = body_owner.get_or_null(p_body);
 	ERR_FAIL_NULL_V(body, false);
 	ERR_FAIL_NULL_V(body->get_space(), false);

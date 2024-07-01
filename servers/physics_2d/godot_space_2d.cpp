@@ -439,16 +439,16 @@ static void _rest_cbk_result(const Vector2i &p_point_A, const Vector2i &p_point_
 	rd->best_local_shape = rd->local_shape;
 }
 
-static void _collision_cbk_result(const Vector2i &p_point_A, const Vector2i &p_point_B, void *p_userdata) {
-	_CollisionCallbackData2D *rd = static_cast<_CollisionCallbackData2D *>(p_userdata);
-
-	Vector2i contact_rel = p_point_B - p_point_A;
-
-	Vector2i normal = contact_rel.normalized();
-
-	rd->contact = p_point_B;
-	rd->normal = normal;
-}
+//static void _collision_cbk_result(const Vector2i &p_point_A, const Vector2i &p_point_B, void *p_userdata) {
+//	_CollisionCallbackData2D *rd = static_cast<_CollisionCallbackData2D *>(p_userdata);
+//
+//	Vector2i contact_rel = p_point_B - p_point_A;
+//
+//	Vector2i normal = contact_rel.normalized();
+//
+//	rd->contact = p_point_B;
+//	rd->normal = normal;
+//}
 
 bool GodotPhysicsDirectSpaceState2D::rest_info(const ShapeParameters &p_parameters, ShapeRestInfo *r_info) {
 	GodotShape2D *shape = GodotPhysicsServer2D::godot_singleton->shape_owner.get_or_null(p_parameters.shape_rid);
@@ -1057,12 +1057,6 @@ bool GodotSpace2D::body_collides_at(GodotBody2D *p_body, const Transform2Di from
 
 	Transform2Di body_transform = from;
 
-	bool recovered = false;
-
-	real_t safe = 1.0;
-	real_t unsafe = 1.0;
-	int best_shape = -1;
-
 	{
 		Rect2i moved_aabb = body_aabb;
 		moved_aabb.position += delta;
@@ -1100,7 +1094,7 @@ bool GodotSpace2D::body_collides_at(GodotBody2D *p_body, const Transform2Di from
 
 				int col_shape_idx = intersection_query_subindex_results[i];
 
-				GodotShape2D *against_shape = col_obj->get_shape(col_shape_idx);
+//				GodotShape2D *against_shape = col_obj->get_shape(col_shape_idx);
 
 				bool excluded = false;
 				for (int k = 0; k < excluded_shape_pair_count; k++) {

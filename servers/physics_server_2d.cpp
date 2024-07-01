@@ -650,7 +650,7 @@ bool PhysicsServer2D::_body_test_motion(RID p_body, const Ref<PhysicsTestMotionP
 	return body_test_motion(p_body, p_parameters->get_parameters(), result_ptr);
 }
 
-bool PhysicsServer2D::_body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, const Ref<PhysicsCollisionResult2D> &p_result, const int16_t collision_type_filter) {
+bool PhysicsServer2D::_body_collides_at(RID p_body, const Transform2Di &from, const Vector2i &delta, const Ref<PhysicsCollisionResult2D> &p_result, const int16_t &collision_type_filter) {
 	CollisionResult *result_ptr = nullptr;
 	if (p_result.is_valid()) {
 		result_ptr = p_result->get_result_ptr();

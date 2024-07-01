@@ -112,6 +112,15 @@ Transform2D::Transform2D(real_t p_rot, const Size2 &p_scale, real_t p_skew, cons
 	columns[2] = p_pos;
 }
 
+Transform2D::Transform2D(const Transform2Di &p_transform2di) {
+	columns[0][0] = p_transform2di.columns[0][0];
+	columns[0][1] = p_transform2di.columns[0][1];
+	columns[1][0] = p_transform2di.columns[1][0];
+	columns[1][1] = p_transform2di.columns[1][1];
+	columns[2][0] = p_transform2di.columns[2][0];
+	columns[2][1] = p_transform2di.columns[2][1];
+}
+
 Size2 Transform2D::get_scale() const {
 	real_t det_sign = SIGN(determinant());
 	return Size2(columns[0].length(), det_sign * columns[1].length());

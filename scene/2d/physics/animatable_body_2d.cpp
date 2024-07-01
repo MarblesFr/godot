@@ -67,7 +67,7 @@ void AnimatableBody2D::_body_state_changed(PhysicsDirectBodyState2D *p_state) {
 		return;
 	}
 
-	last_valid_transform = transform2d_from_transform2di(p_state->get_transform());
+	last_valid_transform = p_state->get_transform();
 	set_notify_local_transform(false);
 	set_global_transform(last_valid_transform);
 	set_notify_local_transform(true);

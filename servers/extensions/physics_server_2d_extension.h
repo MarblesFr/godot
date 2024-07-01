@@ -420,7 +420,8 @@ public:
 		exclude_objects = nullptr;
 		return ret;
 	}
-	bool body_collides_at(RID p_body, const Transform2Di from, const Vector2i delta, CollisionResult *r_result = nullptr, const int16_t collision_type_filter = DEFAULT_COLLIDER_FILTER) override {
+
+	bool body_collides_at(RID p_body, const Transform2Di &from, const Vector2i &delta, CollisionResult *r_result = nullptr, const int16_t collision_type_filter = DEFAULT_COLLIDER_FILTER) override {
 		bool ret = false;
 		GDVIRTUAL_REQUIRED_CALL(_body_collides_at, p_body, from, delta, r_result, collision_type_filter, ret);
 		return ret;

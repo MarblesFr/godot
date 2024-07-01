@@ -81,6 +81,15 @@ Transform2Di::Transform2Di(const Size2i &p_scale, const Vector2i &p_pos) {
 	columns[2] = p_pos;
 }
 
+Transform2Di::Transform2Di(const Transform2D &p_transform2D) {
+	columns[0][0] = (int)Math::round(p_transform2D.columns[0][0]);
+	columns[0][1] = (int)Math::round(p_transform2D.columns[0][1]);
+	columns[1][0] = (int)Math::round(p_transform2D.columns[1][0]);
+	columns[1][1] = (int)Math::round(p_transform2D.columns[1][1]);
+	columns[2][0] = (int)Math::round(p_transform2D.columns[2][0]);
+	columns[2][1] = (int)Math::round(p_transform2D.columns[2][1]);
+}
+
 Size2i Transform2Di::get_scale() const {
 	int32_t det_sign = SIGN(determinant());
 	return Size2i(columns[0].length(), det_sign * columns[1].length());
