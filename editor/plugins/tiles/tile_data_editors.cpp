@@ -1860,7 +1860,7 @@ void GenericTileRectangleIEditor::_base_control_draw() {
 
 	// Draw the rectangles.
 	for (const Vector<Vector2i> &rectangle : rectangles) {
-		Vector<Vector2i> polygon = rectangle_to_polygon(rectangle[0], rectangle[1]);
+		Vector<Vector2i> polygon = _rectangle_to_polygon(rectangle[0], rectangle[1]);
 		Color color = rectangle_color;
 		color.a = 0.5;
 		Vector<Color> v_color;
@@ -1887,7 +1887,7 @@ void GenericTileRectangleIEditor::_base_control_draw() {
 	base_control->draw_set_transform_matrix(Transform2D());
 	for (int i = 0; i < (int)rectangles.size(); i++) {
 		const Vector<Vector2i> &rect = rectangles[i];
-		Vector<Vector2i> polygon = rectangle_to_polygon(rect[0], rect[1]);
+		Vector<Vector2i> polygon = _rectangle_to_polygon(rect[0], rect[1]);
 		for (int j = 0; j < polygon.size(); j++) {
 			const Color poly_modulate = (tinted_rectangle_index == i && tinted_point_index == j) ? Color(0.5, 1, 2) : Color(1, 1, 1);
 			base_control->draw_texture(handle, xform.xform(polygon[j]) - handle->get_size() / 2, poly_modulate);
@@ -1901,7 +1901,7 @@ void GenericTileRectangleIEditor::_base_control_draw() {
 		String text = multiple_rectangle_mode ? vformat("%d:%d", tinted_rectangle_index, tinted_point_index) : vformat("%d", tinted_point_index);
 		Size2 text_size = font->get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size);
 		const Vector<Vector2i> &rect = rectangles[tinted_rectangle_index];
-		Vector<Vector2i> polygon = rectangle_to_polygon(rect[0], rect[1]);
+		Vector<Vector2i> polygon = _rectangle_to_polygon(rect[0], rect[1]);
 		base_control->draw_string(font, xform.xform(polygon[tinted_point_index]) - text_size * 0.5, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(1.0, 1.0, 1.0, 0.5));
 	}
 
@@ -2039,7 +2039,7 @@ void GenericTileRectangleIEditor::_grab_rectangle_point(Vector2i p_pos, const Tr
 	float closest_distance = grab_threshold + 1.0;
 	for (unsigned int i = 0; i < rectangles.size(); i++) {
 		const Vector<Vector2i> &rectangle = rectangles[i];
-		Vector<Vector2i> polygon = rectangle_to_polygon(rectangle[0], rectangle[1]);
+		Vector<Vector2i> polygon = _rectangle_to_polygon(rectangle[0], rectangle[1]);
 		for (int j = 0; j < polygon.size(); j++) {
 			float distance = p_pos.distance_to(p_rectangle_xform.xform(polygon[j]));
 			if (distance < grab_threshold && distance < closest_distance) {
@@ -2129,7 +2129,7 @@ void GenericTileRectangleIEditor::_base_control_gui_input(Ref<InputEvent> p_even
 			Vector<Vector2i> rectangle = rectangles[drag_rectangle_index];
 			Vector2i size = rectangle[0];
 			Vector2i offset = rectangle[1];
-			Vector<Vector2i> polygon = rectangle_to_polygon(size, offset);
+			Vector<Vector2i> polygon = _rectangle_to_polygon(size, offset);
 			int y_delta;
 			int new_height;
 			if (drag_point_index == 0 || drag_point_index == 1) {
@@ -3325,7 +3325,7 @@ void TileDataCollisionEditor::draw_over_tile(CanvasItem *p_canvas_item, Transfor
 	for (int i = 0; i < tile_data->get_collision_rectangles_count(physics_layer); i++) {
 		Vector<Vector2i> rectangle = tile_data->get_collision_rectangle_data(physics_layer, i);
 
-		Vector<Vector2i> polygon = rectangle_to_polygon(rectangle[0], rectangle[1]);
+		Vector<Vector2i> polygon = _rectangle_to_polygon(rectangle[0], rectangle[1]);
 		p_canvas_item->draw_polygon_i(polygon, color);
 
 		if (tile_data->is_collision_rectangle_one_way(physics_layer, i)) {
